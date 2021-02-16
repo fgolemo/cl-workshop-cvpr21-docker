@@ -1,0 +1,1 @@
+sequoia @ git+https://www.github.com/lebrice/Sequoia.git#egg=sequoia
