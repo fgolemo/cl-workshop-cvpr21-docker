@@ -16,6 +16,7 @@ import torch
 from numpy import inf
 from gym import spaces
 from torch import Tensor, nn
+from torchvision.models import resnet18, ResNet
 from simple_parsing import ArgumentParser
 
 
@@ -23,6 +24,7 @@ from simple_parsing import ArgumentParser
 sys.path.extend([".", ".."])
 from sequoia import Method, Setting
 from sequoia.common.hparams import HyperParameters, log_uniform
+from sequoia.common.spaces import Image
 from sequoia.settings import ClassIncrementalSetting
 from sequoia.settings.passive.cl.objects import (
     Actions,
@@ -48,28 +50,18 @@ class ExampleModel(nn.Module):
         reward_space: gym.Space,
     ):
         super().__init__()
+        image_space: Image = observation_space.x
         image_shape = observation_space[0].shape
 
-        # TODO: THe input space here (from the quick_demo.py file in Sequoia) is based
-        # on MNIST, whereas the SL tracks will use `synbols`, which has 228x228 images.
-
-        assert image_shape == (3, 28, 28)
+        # This only works for classification / discrete action spaces.
         assert isinstance(action_space, spaces.Discrete)
         assert action_space == reward_space
         n_classes = action_space.n
-        image_channels = image_shape[0]
 
-        self.encoder = nn.Sequential(
-            nn.Conv2d(image_channels, 6, 5),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-            nn.Conv2d(6, 16, 5),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-        )
+        self.encoder, self.representations_size = self.create_encoder(image_space)
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(256, 120),
+            nn.Linear(self.representations_size, 120),
             nn.ReLU(),
             nn.Linear(120, 84),
             nn.ReLU(),
@@ -77,6 +69,36 @@ class ExampleModel(nn.Module):
         )
         self.loss = nn.CrossEntropyLoss()
 
+    def create_encoder(self, image_space: Image) -> Tuple[nn.Module, int]:
+        """ Create an encoder for the given image space. Returns the encoder, as well as
+        the size of the resulting representations.
+        """
+        # TODO: THe input space here (from the quick_demo.py file in Sequoia) is based
+        # on MNIST, whereas the SL tracks will use `synbols`, which has 228x228 images.
+        if image_space.width == image_space.height == 28:
+            # MNIST / Fashion-MNIST etc setup.
+            encoder = nn.Sequential(
+                nn.Conv2d(image_space.channels, 6, 5),
+                nn.ReLU(),
+                nn.MaxPool2d(2),
+                nn.Conv2d(6, 16, 5),
+                nn.ReLU(),
+                nn.MaxPool2d(2),
+            )
+            features = 256
+        elif image_space.width == image_space.height == 224:
+            # Synbols dataset:
+            resnet: ResNet = resnet18()
+            features = resnet.fc.in_features 
+            # Disable/Remove the last layer. 
+            resnet.fc = nn.Sequential()
+            encoder = resnet
+        else:
+            raise NotImplementedError(
+                f"No encoder registered for the given image space {image_space}"
+            )
+        return encoder, features
+        
     def forward(self, observations: Observations) -> Tensor:
         # NOTE: here we don't make use of the task labels.
         x = observations.x

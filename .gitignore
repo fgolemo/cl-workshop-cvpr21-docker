@@ -2,3 +2,4 @@
 *.egg-info
 .vscode
 .dmypy.json
+data
