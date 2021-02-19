@@ -143,4 +143,4 @@ cython_debug/
 .vscode
 .dmypy.json
 data/
-
+results/
