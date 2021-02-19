@@ -1,32 +1,44 @@
 import itertools
+import warnings
 from abc import ABC, abstractmethod
 from functools import partial
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Type, TypeVar
+from typing import Any, Dict, Generic, List, Type, TypeVar, Optional
 
 import gym
 import numpy as np
 import tqdm
-from sequoia.common import Config
+from sequoia.common.config import Config
 from sequoia.common.gym_wrappers import StepCallbackWrapper
 from sequoia.methods import Method
-from sequoia.settings import (Actions, ClassIncrementalSetting, Observations,
-                              Results, Rewards, Setting)
+from sequoia.settings import (
+    Actions,
+    ClassIncrementalSetting,
+    IncrementalRLSetting,
+    Observations,
+    Results,
+    Rewards,
+    Setting,
+)
 from sequoia.settings.assumptions import IncrementalSetting
 from sequoia.settings.base import SettingABC
 from torch import Tensor
+
 from env_proxy import EnvironmentProxy
 
 logger = getLogger(__file__)
 
 # IDEA: Dict that indicates for each setting, which attributes are *NOT* writeable.
 _readonly_attributes: Dict[Type[Setting], List[str]] = {
-    ClassIncrementalSetting: ["test_transforms"]
+    ClassIncrementalSetting: ["test_transforms"],
+    IncrementalRLSetting: ["test_transforms"],
 }
 # IDEA: Dict that indicates for each setting, which attributes are *NOT* readable.
 _hidden_attributes: Dict[Type[Setting], List[str]] = {
-    ClassIncrementalSetting: ["test_class_order"]
+    ClassIncrementalSetting: ["test_class_order"],
+    IncrementalRLSetting: ["test_task_schedule", "test_wrappers"],
+    
 }
 
 SettingType = TypeVar("SettingType", bound=Setting)
@@ -47,11 +59,10 @@ class SettingProxy(SettingABC, Generic[SettingType]):
     - train_dataloader()
     - val_dataloader()
     - test_dataloader()
-    
     """
 
     # NOTE: Using __slots__ so we can detect errors if Method tries to set non-existent
-    # attribute on the SettingProxy. 
+    # attribute on the SettingProxy.
     __slots__ = ["_setting", "_setting_type", "train_env", "valid_env", "test_env"]
 
     def __init__(
@@ -68,38 +79,52 @@ class SettingProxy(SettingABC, Generic[SettingType]):
             self._setting = setting_type(**setting_kwargs)
         super().__init__()
 
-
     @property
     def observation_space(self) -> gym.Space:
-        return self._setting.observation_space
+        return self.get_attribute("observation_space")
 
     @property
     def action_space(self) -> gym.Space:
-        return self._setting.action_space
+        return self.get_attribute("action_space")
 
     @property
     def reward_space(self) -> gym.Space:
-        return self._setting.reward_space
+        return self.get_attribute("reward_space")
 
+    @property
+    def config(self) -> Config:
+        return self.get_attribute("config")
+    
+    @config.setter
+    def config(self, value: Config) -> None:
+        self.set_attribute("config", value)
+    
+    def get_name(self):
+        # TODO
+        return self._setting.get_name()
+    
     def _is_readable(self, attribute: str) -> bool:
         return attribute not in _hidden_attributes[self._setting_type]
 
     def _is_writeable(self, attribute: str) -> bool:
         return attribute not in _readonly_attributes[self._setting_type]
 
+    @property
+    def batch_size(self) -> Optional[int]:
+        return self.get_attribute("batch_size")
+
+    @batch_size.setter
+    def batch_size(self, value: Optional[int]) -> None:
+        self.set_attribute("batch_size", value)
+
     def apply(self, method: Method, config: Config = None) -> Results:
         # TODO: Figure out where the 'config' should be defined?
         method.configure(setting=self)
 
-        # Run the Training loop (which is defined in IncrementalSetting).
+        # Run the Training loop.
         self.train_loop(method)
-        # Run the Test loop (which is defined in IncrementalSetting).
+        # Run the Test loop.
         results: Results = self.test_loop(method)
-
-        logger.info(f"Resulting objective of Test Loop: {results.objective}")
-        logger.info(results.summary())
-        method.receive_results(self, results=results)
-        return results
 
         logger.info(f"Resulting objective of Test Loop: {results.objective}")
         logger.info(results.summary())
@@ -108,11 +133,15 @@ class SettingProxy(SettingABC, Generic[SettingType]):
 
     def get_attribute(self, name: str) -> Any:
         value = getattr(self._setting, name)
+        if value is None:
+            return value
         if not isinstance(value, (int, str, bool, np.ndarray, gym.Space, list)):
-            raise NotImplementedError(
-                f"TODO: Attribute {name} has a value of type {type(value)}, which "
-                f"wouldn't necessarily be easy to transfer with gRPC. "
-                f"This could mean that we need to implement this on the proxy itself. "
+            warnings.warn(
+                RuntimeWarning(
+                    f"TODO: Attribute {name} has a value of type {type(value)}, which "
+                    f"wouldn't necessarily be easy to transfer with gRPC. This could "
+                    f"mean that we need to implement this on the proxy itself. "
+                )
             )
         return value
 
@@ -123,6 +152,10 @@ class SettingProxy(SettingABC, Generic[SettingType]):
         self, batch_size: int = None, num_workers: int = None
     ) -> EnvironmentProxy:
         # TODO: Faking this 'remote-ness' for now:
+        
+        batch_size = batch_size if batch_size is not None else self.get_attribute("batch_size")
+        num_workers = num_workers if num_workers is not None else self.get_attribute("num_workers")
+        
         self.train_env = EnvironmentProxy(
             env_fn=partial(
                 self._setting.train_dataloader,
@@ -136,6 +169,10 @@ class SettingProxy(SettingABC, Generic[SettingType]):
     def val_dataloader(
         self, batch_size: int = None, num_workers: int = None
     ) -> EnvironmentProxy:
+        
+        batch_size = batch_size if batch_size is not None else self.get_attribute("batch_size")
+        num_workers = num_workers if num_workers is not None else self.get_attribute("num_workers")
+        
         self.valid_env = EnvironmentProxy(
             env_fn=partial(
                 self._setting.val_dataloader,
@@ -149,6 +186,10 @@ class SettingProxy(SettingABC, Generic[SettingType]):
     def test_dataloader(
         self, batch_size: int = None, num_workers: int = None
     ) -> EnvironmentProxy:
+
+        batch_size = batch_size if batch_size is not None else self.get_attribute("batch_size")
+        num_workers = num_workers if num_workers is not None else self.get_attribute("num_workers")
+
         self.test_env = EnvironmentProxy(
             env_fn=partial(
                 self._setting.test_dataloader,
@@ -172,7 +213,7 @@ class SettingProxy(SettingABC, Generic[SettingType]):
             logger.info(
                 f"Starting training" + (f" on task {task_id}." if nb_tasks > 1 else ".")
             )
-            self.set_attribute("current_task_id", task_id)
+            self.set_attribute("_current_task_id", task_id)
 
             if known_task_boundaries_at_train_time:
                 # Inform the model of a task boundary. If the task labels are
@@ -230,18 +271,6 @@ class SettingProxy(SettingABC, Generic[SettingType]):
         )
         task_labels_at_test_time = self.get_attribute("task_labels_at_test_time")
 
-        # TODO: This particular one is a bit iffy.
-        # In SL we don't actually have this attribute.
-        try:
-            test_task_schedule = self.get_attribute("test_task_schedule")
-        except:
-            # FIXME: Constructing it here just for now.
-            test_boundary_steps = self.get_attribute("test_boundary_steps")
-            batch_size = self.get_attribute("batch_size")
-            test_task_schedule = {
-                step // batch_size: i for i, step in enumerate(test_boundary_steps)
-            }
-
         test_env = self.test_dataloader()
 
         if known_task_boundaries_at_test_time and nb_tasks > 1:
@@ -249,41 +278,10 @@ class SettingProxy(SettingABC, Generic[SettingType]):
             # Setting allows it.
             # Not sure how to do this. It might be simpler to just do something like
             # `obs, rewards, done, info, task_switched = <endpoint>.step(actions)`?
-
-            def _on_task_switch(step: int, *arg) -> None:
-                if step not in test_task_schedule:
-                    return
-                if not hasattr(method, "on_task_switch"):
-                    logger.warning(
-                        UserWarning(
-                            f"On a task boundary, but since your method doesn't "
-                            f"have an `on_task_switch` method, it won't know about "
-                            f"it! "
-                        )
-                    )
-                    return
-                if task_labels_at_test_time:
-                    task_steps = sorted(test_task_schedule.keys())
-                    # TODO: If the ordering of tasks were different (shuffled
-                    # tasks for example), then this wouldn't work, we'd need a
-                    # list of the task ids or something like that.
-                    task_id = task_steps.index(step)
-                    logger.debug(
-                        f"Calling `method.on_task_switch({task_id})` "
-                        f"since task labels are available at test-time."
-                    )
-                    method.on_task_switch(task_id)
-                else:
-                    logger.debug(
-                        f"Calling `method.on_task_switch(None)` "
-                        f"since task labels aren't available at "
-                        f"test-time, but task boundaries are known."
-                    )
-                    method.on_task_switch(None)
-
-            # Add this wrapper that will call `on_task_switch` when the right step is
-            # reached.
-            test_env = StepCallbackWrapper(test_env, callbacks=[_on_task_switch])
+            # # Add this wrapper that will call `on_task_switch` when the right step is
+            # # reached.
+            # test_env = StepCallbackWrapper(test_env, callbacks=[_on_task_switch])
+            pass
 
         obs = test_env.reset()
         max_steps: int = self.get_attribute("test_steps")
@@ -300,6 +298,10 @@ class SettingProxy(SettingABC, Generic[SettingType]):
 
             # logger.debug(f"action: {action}")
             obs, reward, done, info = test_env.step(action)
+
+            # TODO: Add something to `info` that indicates when a task boundary is
+            # reached, so that we can call the `on_task_switch` method on the Method
+            # ourselves.
 
             if done and not test_env.is_closed():
                 # logger.debug(f"end of test episode {episode}")
