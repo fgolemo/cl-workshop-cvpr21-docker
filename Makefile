@@ -1,3 +1,5 @@
+#### TODO: FIX THIS TO WORK WITH CONDA ACTIVATE, see here https://stackoverflow.com/questions/53382383/makefile-cant-use-conda-activate
+
 install:
 	echo "=== CREATING NEW CONDA ENV 'clcomp21'"
 	conda env create -f environment.yaml
@@ -7,15 +9,15 @@ install:
 
 sl:
 	echo "=== RUNNING SL TRACK"
-	python main.py --mode sl
+	python main.py --mode sl # this will take a bit
 
 rl:
 	echo "=== RUNNING RL TRACK"
-	python main.py --mode rl
+	python main.py --mode rl # this will take a bit
 
 both:
 	echo "=== RUNNING BOTH TRACKS"
-	python main.py --mode both
+	python main.py --mode both # this will take a bit
 
 upload-sl:
 	echo "TODO"
