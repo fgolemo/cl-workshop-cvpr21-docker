@@ -1,4 +1,5 @@
 #### TODO: FIX THIS TO WORK WITH CONDA ACTIVATE, see here https://stackoverflow.com/questions/53382383/makefile-cant-use-conda-activate
+#### TODO: FOR NOW YOU HAVE TO MANUALLY CALL THE COMMANDS IN make install
 
 install:
 	echo "=== CREATING NEW CONDA ENV 'clcomp21'"

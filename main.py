@@ -5,8 +5,8 @@ import argparse
 
 ### FOR PERFORMANCE REASONS, THE SEQUOIA IMPORTS ARE BELOW AFTER ARGPARSE
 
-if __name__ == '__main__':
-    
+if __name__ == "__main__":
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--mode",
@@ -18,32 +18,26 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-
     from sequoia.methods import Method
     from sequoia.settings import ClassIncrementalSetting, Results, Setting, IncrementalRLSetting
 
     from setting_proxy import SettingProxy
     from submission.submission import get_method
 
-
     def upload_results(setting: Setting, method: Method, results: Results):
         print(results)
         raise NotImplementedError("TODO: Upload the results to evalai.")
-
 
     def run_track(setting, config: str, method: Method):
         setting = SettingProxy(setting, config)
         results = setting.apply(method)
         upload_results(setting, method, results)
 
-
     def run_sl(method: Method):
         return run_track(ClassIncrementalSetting, "sl_track.yaml", method)
 
-
     def run_rl(method: Method):
         return run_track(IncrementalRLSetting, "rl_track.yaml", method)
-
 
     if args.mode == "sl":
         print("=== RUNNING SL SETTING")
