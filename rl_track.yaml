@@ -1,5 +1,5 @@
 _current_task_id: 0
-add_done_to_observations: false
+add_done_to_observations: true
 batch_size: null
 dataset: monsterkong
 episodes_per_task: null

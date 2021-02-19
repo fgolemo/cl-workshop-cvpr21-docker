@@ -55,7 +55,7 @@ def run_rl_and_sl_track():
     # TODO: Figure out how we want to weight the different objectives, since in SL
     # its the average accuracy, while in RL its the average reward per episode. 
     weighted_objective = 0.5 * sl_results.objective +  0.01 * rl_results.objective
-    
+    print(f"combined objective: {weighted_objective}")
     raise NotImplementedError("TODO: Upload the results to evalai.")
 
 

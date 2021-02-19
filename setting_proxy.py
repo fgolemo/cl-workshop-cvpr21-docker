@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from functools import partial
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Type, TypeVar
+from typing import Any, Dict, Generic, List, Type, TypeVar, Optional
 
 import gym
 import numpy as np
@@ -15,6 +15,7 @@ from sequoia.methods import Method
 from sequoia.settings import (
     Actions,
     ClassIncrementalSetting,
+    IncrementalRLSetting,
     Observations,
     Results,
     Rewards,
@@ -30,11 +31,14 @@ logger = getLogger(__file__)
 
 # IDEA: Dict that indicates for each setting, which attributes are *NOT* writeable.
 _readonly_attributes: Dict[Type[Setting], List[str]] = {
-    ClassIncrementalSetting: ["test_transforms"]
+    ClassIncrementalSetting: ["test_transforms"],
+    IncrementalRLSetting: ["test_transforms"],
 }
 # IDEA: Dict that indicates for each setting, which attributes are *NOT* readable.
 _hidden_attributes: Dict[Type[Setting], List[str]] = {
-    ClassIncrementalSetting: ["test_class_order"]
+    ClassIncrementalSetting: ["test_class_order"],
+    IncrementalRLSetting: ["test_task_schedule", "test_wrappers"],
+    
 }
 
 SettingType = TypeVar("SettingType", bound=Setting)
@@ -105,6 +109,14 @@ class SettingProxy(SettingABC, Generic[SettingType]):
     def _is_writeable(self, attribute: str) -> bool:
         return attribute not in _readonly_attributes[self._setting_type]
 
+    @property
+    def batch_size(self) -> Optional[int]:
+        return self.get_attribute("batch_size")
+
+    @batch_size.setter
+    def batch_size(self, value: Optional[int]) -> None:
+        self.set_attribute("batch_size", value)
+
     def apply(self, method: Method, config: Config = None) -> Results:
         # TODO: Figure out where the 'config' should be defined?
         method.configure(setting=self)
@@ -140,6 +152,10 @@ class SettingProxy(SettingABC, Generic[SettingType]):
         self, batch_size: int = None, num_workers: int = None
     ) -> EnvironmentProxy:
         # TODO: Faking this 'remote-ness' for now:
+        
+        batch_size = batch_size if batch_size is not None else self.get_attribute("batch_size")
+        num_workers = num_workers if num_workers is not None else self.get_attribute("num_workers")
+        
         self.train_env = EnvironmentProxy(
             env_fn=partial(
                 self._setting.train_dataloader,
@@ -153,6 +169,10 @@ class SettingProxy(SettingABC, Generic[SettingType]):
     def val_dataloader(
         self, batch_size: int = None, num_workers: int = None
     ) -> EnvironmentProxy:
+        
+        batch_size = batch_size if batch_size is not None else self.get_attribute("batch_size")
+        num_workers = num_workers if num_workers is not None else self.get_attribute("num_workers")
+        
         self.valid_env = EnvironmentProxy(
             env_fn=partial(
                 self._setting.val_dataloader,
@@ -166,6 +186,10 @@ class SettingProxy(SettingABC, Generic[SettingType]):
     def test_dataloader(
         self, batch_size: int = None, num_workers: int = None
     ) -> EnvironmentProxy:
+
+        batch_size = batch_size if batch_size is not None else self.get_attribute("batch_size")
+        num_workers = num_workers if num_workers is not None else self.get_attribute("num_workers")
+
         self.test_env = EnvironmentProxy(
             env_fn=partial(
                 self._setting.test_dataloader,
@@ -189,7 +213,7 @@ class SettingProxy(SettingABC, Generic[SettingType]):
             logger.info(
                 f"Starting training" + (f" on task {task_id}." if nb_tasks > 1 else ".")
             )
-            self.set_attribute("current_task_id", task_id)
+            self.set_attribute("_current_task_id", task_id)
 
             if known_task_boundaries_at_train_time:
                 # Inform the model of a task boundary. If the task labels are
