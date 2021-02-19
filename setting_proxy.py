@@ -108,7 +108,7 @@ class SettingProxy(SettingABC, Generic[SettingType]):
 
     def get_attribute(self, name: str) -> Any:
         value = getattr(self._setting, name)
-        if not isinstance(value, (int, str, bool, np.ndarray, gym.Space)):
+        if not isinstance(value, (int, str, bool, np.ndarray, gym.Space, list)):
             raise NotImplementedError(
                 f"TODO: Attribute {name} has a value of type {type(value)}, which "
                 f"wouldn't necessarily be easy to transfer with gRPC. "
