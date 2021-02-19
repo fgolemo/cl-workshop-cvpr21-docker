@@ -230,18 +230,6 @@ class SettingProxy(SettingABC, Generic[SettingType]):
         )
         task_labels_at_test_time = self.get_attribute("task_labels_at_test_time")
 
-        # TODO: This particular one is a bit iffy.
-        # In SL we don't actually have this attribute.
-        try:
-            test_task_schedule = self.get_attribute("test_task_schedule")
-        except:
-            # FIXME: Constructing it here just for now.
-            test_boundary_steps = self.get_attribute("test_boundary_steps")
-            batch_size = self.get_attribute("batch_size")
-            test_task_schedule = {
-                step // batch_size: i for i, step in enumerate(test_boundary_steps)
-            }
-
         test_env = self.test_dataloader()
 
         if known_task_boundaries_at_test_time and nb_tasks > 1:
@@ -249,41 +237,10 @@ class SettingProxy(SettingABC, Generic[SettingType]):
             # Setting allows it.
             # Not sure how to do this. It might be simpler to just do something like
             # `obs, rewards, done, info, task_switched = <endpoint>.step(actions)`?
-
-            def _on_task_switch(step: int, *arg) -> None:
-                if step not in test_task_schedule:
-                    return
-                if not hasattr(method, "on_task_switch"):
-                    logger.warning(
-                        UserWarning(
-                            f"On a task boundary, but since your method doesn't "
-                            f"have an `on_task_switch` method, it won't know about "
-                            f"it! "
-                        )
-                    )
-                    return
-                if task_labels_at_test_time:
-                    task_steps = sorted(test_task_schedule.keys())
-                    # TODO: If the ordering of tasks were different (shuffled
-                    # tasks for example), then this wouldn't work, we'd need a
-                    # list of the task ids or something like that.
-                    task_id = task_steps.index(step)
-                    logger.debug(
-                        f"Calling `method.on_task_switch({task_id})` "
-                        f"since task labels are available at test-time."
-                    )
-                    method.on_task_switch(task_id)
-                else:
-                    logger.debug(
-                        f"Calling `method.on_task_switch(None)` "
-                        f"since task labels aren't available at "
-                        f"test-time, but task boundaries are known."
-                    )
-                    method.on_task_switch(None)
-
-            # Add this wrapper that will call `on_task_switch` when the right step is
-            # reached.
-            test_env = StepCallbackWrapper(test_env, callbacks=[_on_task_switch])
+            # # Add this wrapper that will call `on_task_switch` when the right step is
+            # # reached.
+            # test_env = StepCallbackWrapper(test_env, callbacks=[_on_task_switch])
+            pass
 
         obs = test_env.reset()
         max_steps: int = self.get_attribute("test_steps")
@@ -300,6 +257,10 @@ class SettingProxy(SettingABC, Generic[SettingType]):
 
             # logger.debug(f"action: {action}")
             obs, reward, done, info = test_env.step(action)
+
+            # TODO: Add something to `info` that indicates when a task boundary is
+            # reached, so that we can call the `on_task_switch` method on the Method
+            # ourselves.
 
             if done and not test_env.is_closed():
                 # logger.debug(f"end of test episode {episode}")
