@@ -4,31 +4,37 @@ This repo will serve as the seed repo for the challenge, containing a docker-com
 
 ## Setup
 
-TODO: Fix this to use docker?
+We assume you have `make` installed, as well as miniconda or anaconda on your PATH.
 
-```console
-$ conda env create -f environment.yaml
-$ conda activate cvpr_competition 
-$ pip install -r requirements.txt
+Cd into this directory and then
+  
+```bash
+make install
 ```
 
 ## Running the tracks locally:
 
 - Supervised Learning track:
 
-    ```console
-    python sl_track.py
-    ```
+```bash
+make sl
+```
 
 - Reinforcement Learning track:
 
-    TODO
+```bash
+make rl
+```
 
 - "Combined" track:
 
-    TODO
+```bash
+make both
+```
 
 
 ## Making a challenge submission
 
-TODO
+```bash
+make [upload-sl|upload-rl|upload-both]
+```
