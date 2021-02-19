@@ -231,7 +231,16 @@ class SettingProxy(SettingABC, Generic[SettingType]):
         task_labels_at_test_time = self.get_attribute("task_labels_at_test_time")
 
         # TODO: This particular one is a bit iffy.
-        test_task_schedule = self.get_attribute("test_task_schedule")
+        # In SL we don't actually have this attribute.
+        try:
+            test_task_schedule = self.get_attribute("test_task_schedule")
+        except:
+            # FIXME: Constructing it here just for now.
+            test_boundary_steps = self.get_attribute("test_boundary_steps")
+            batch_size = self.get_attribute("batch_size")
+            test_task_schedule = {
+                step // batch_size: i for i, step in enumerate(test_boundary_steps)
+            }
 
         test_env = self.test_dataloader()
 
@@ -306,15 +315,15 @@ class SettingProxy(SettingABC, Generic[SettingType]):
     # to forward calls to the remote. In the end I think it's better to explicitly
     # prevent any of these from happening.
 
-    # def __getattr__(self, name: str):
-    #     # NOTE: This only ever gets called if the attribute was not found on the
-    #     if self._is_readable(name):
-    #         print(f"Accessing missing attribute {name} from the 'remote' setting.")
-    #         return self.get_attribute(name)
-    #     raise AttributeError(
-    #         f"Attribute {name} is either not present on the setting, or not marked as "
-    #         f"readable!"
-    #     )
+    def __getattr__(self, name: str):
+        # NOTE: This only ever gets called if the attribute was not found on the
+        if self._is_readable(name):
+            print(f"Accessing missing attribute {name} from the 'remote' setting.")
+            return self.get_attribute(name)
+        raise AttributeError(
+            f"Attribute {name} is either not present on the setting, or not marked as "
+            f"readable!"
+        )
 
     # def __setattr__(self, name: str, value: Any) -> None:
     #     # Weird pytorch-lightning stuff:
