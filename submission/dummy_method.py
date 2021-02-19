@@ -30,5 +30,4 @@ class DummyMethod(Method, target_setting=ClassIncrementalSetting):
 
     def get_actions(self, observations: Observations, action_space: gym.Space) -> Actions:
         """ Get a batch of predictions (aka actions) for these observations. """
-
-        return self.target_setting.Actions(np.zeros(action_space.shape))
+        return self.target_setting.Actions(action_space.sample())
