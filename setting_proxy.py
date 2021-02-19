@@ -1,4 +1,5 @@
 import itertools
+import warnings
 from abc import ABC, abstractmethod
 from functools import partial
 from logging import getLogger
@@ -8,14 +9,21 @@ from typing import Any, Dict, Generic, List, Type, TypeVar
 import gym
 import numpy as np
 import tqdm
-from sequoia.common import Config
+from sequoia.common.config import Config
 from sequoia.common.gym_wrappers import StepCallbackWrapper
 from sequoia.methods import Method
-from sequoia.settings import (Actions, ClassIncrementalSetting, Observations,
-                              Results, Rewards, Setting)
+from sequoia.settings import (
+    Actions,
+    ClassIncrementalSetting,
+    Observations,
+    Results,
+    Rewards,
+    Setting,
+)
 from sequoia.settings.assumptions import IncrementalSetting
 from sequoia.settings.base import SettingABC
 from torch import Tensor
+
 from env_proxy import EnvironmentProxy
 
 logger = getLogger(__file__)
@@ -47,11 +55,10 @@ class SettingProxy(SettingABC, Generic[SettingType]):
     - train_dataloader()
     - val_dataloader()
     - test_dataloader()
-    
     """
 
     # NOTE: Using __slots__ so we can detect errors if Method tries to set non-existent
-    # attribute on the SettingProxy. 
+    # attribute on the SettingProxy.
     __slots__ = ["_setting", "_setting_type", "train_env", "valid_env", "test_env"]
 
     def __init__(
@@ -68,19 +75,30 @@ class SettingProxy(SettingABC, Generic[SettingType]):
             self._setting = setting_type(**setting_kwargs)
         super().__init__()
 
-
     @property
     def observation_space(self) -> gym.Space:
-        return self._setting.observation_space
+        return self.get_attribute("observation_space")
 
     @property
     def action_space(self) -> gym.Space:
-        return self._setting.action_space
+        return self.get_attribute("action_space")
 
     @property
     def reward_space(self) -> gym.Space:
-        return self._setting.reward_space
+        return self.get_attribute("reward_space")
 
+    @property
+    def config(self) -> Config:
+        return self.get_attribute("config")
+    
+    @config.setter
+    def config(self, value: Config) -> None:
+        self.set_attribute("config", value)
+    
+    def get_name(self):
+        # TODO
+        return self._setting.get_name()
+    
     def _is_readable(self, attribute: str) -> bool:
         return attribute not in _hidden_attributes[self._setting_type]
 
@@ -91,15 +109,10 @@ class SettingProxy(SettingABC, Generic[SettingType]):
         # TODO: Figure out where the 'config' should be defined?
         method.configure(setting=self)
 
-        # Run the Training loop (which is defined in IncrementalSetting).
+        # Run the Training loop.
         self.train_loop(method)
-        # Run the Test loop (which is defined in IncrementalSetting).
+        # Run the Test loop.
         results: Results = self.test_loop(method)
-
-        logger.info(f"Resulting objective of Test Loop: {results.objective}")
-        logger.info(results.summary())
-        method.receive_results(self, results=results)
-        return results
 
         logger.info(f"Resulting objective of Test Loop: {results.objective}")
         logger.info(results.summary())
@@ -108,11 +121,15 @@ class SettingProxy(SettingABC, Generic[SettingType]):
 
     def get_attribute(self, name: str) -> Any:
         value = getattr(self._setting, name)
+        if value is None:
+            return value
         if not isinstance(value, (int, str, bool, np.ndarray, gym.Space, list)):
-            raise NotImplementedError(
-                f"TODO: Attribute {name} has a value of type {type(value)}, which "
-                f"wouldn't necessarily be easy to transfer with gRPC. "
-                f"This could mean that we need to implement this on the proxy itself. "
+            warnings.warn(
+                RuntimeWarning(
+                    f"TODO: Attribute {name} has a value of type {type(value)}, which "
+                    f"wouldn't necessarily be easy to transfer with gRPC. This could "
+                    f"mean that we need to implement this on the proxy itself. "
+                )
             )
         return value
 

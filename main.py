@@ -10,7 +10,9 @@ from sequoia.settings import (
     Results,
     Setting,
 )
-
+# TODO: Move the SettingProxy and EnvProxy etc to the Sequoia repo, under sequoia/server
+# or something like that.
+# from sequoia.server.setting_proxy import SettingProxy
 from setting_proxy import SettingProxy
 from submission.submission import get_method, get_method_rl, get_method_sl
 
