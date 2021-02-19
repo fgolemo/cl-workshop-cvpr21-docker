@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  grpcserver:
+    build:
+      context: .
+      dockerfile: docker-server/Dockerfile
+
+  #    ports:
+#      - "5000:5000"
+  grpcclient:
+    build:
+      context: .
+      dockerfile: docker-client/Dockerfile
+    depends_on:
+      - "grpcserver"

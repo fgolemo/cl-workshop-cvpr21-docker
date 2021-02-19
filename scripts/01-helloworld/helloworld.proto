@@ -1,0 +1,37 @@
+// recompile to python classed from this folder using
+// python -m grpc_tools.protoc -I./ --python_out=. --grpc_python_out=. ./helloworld.proto
+
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "io.grpc.examples.helloworld";
+option java_outer_classname = "HelloWorldProto";
+option objc_class_prefix = "HLW";
+
+package helloworld;
+
+// The greeting service definition.
+service Greeter {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {}
+
+    // Sends another greeting
+  rpc SayHelloAgain (HelloRequest) returns (HelloReply) {}
+
+    // shutdown the server after a long hard day
+  rpc Shutdown (Empty) returns (Empty) {}
+
+}
+
+// The request message containing the user's name.
+message HelloRequest {
+  string name = 1;
+}
+
+message Empty {
+}
+
+// The response message containing the greetings
+message HelloReply {
+  string message = 1;
+}
