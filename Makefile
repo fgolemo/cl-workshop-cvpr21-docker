@@ -21,7 +21,9 @@ both:
 	python main.py --mode both # this will take a bit
 
 upload-sl:
-	echo "TODO"
+	echo "=== RUNNING DOCKER BUILD AND UPLOAD"
+	docker build --no-cache -t sequoia-seed .
+	#docker tag
 
 upload-rl:
 	echo "TODO"

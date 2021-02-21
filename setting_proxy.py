@@ -38,7 +38,6 @@ _readonly_attributes: Dict[Type[Setting], List[str]] = {
 _hidden_attributes: Dict[Type[Setting], List[str]] = {
     ClassIncrementalSetting: ["test_class_order"],
     IncrementalRLSetting: ["test_task_schedule", "test_wrappers"],
-    
 }
 
 SettingType = TypeVar("SettingType", bound=Setting)
@@ -66,10 +65,7 @@ class SettingProxy(SettingABC, Generic[SettingType]):
     __slots__ = ["_setting", "_setting_type", "train_env", "valid_env", "test_env"]
 
     def __init__(
-        self,
-        setting_type: Type[SettingType],
-        setting_config_path: Path = None,
-        **setting_kwargs,
+        self, setting_type: Type[SettingType], setting_config_path: Path = None, **setting_kwargs,
     ):
         self._setting_type = setting_type
         self._setting: SettingType
@@ -94,15 +90,15 @@ class SettingProxy(SettingABC, Generic[SettingType]):
     @property
     def config(self) -> Config:
         return self.get_attribute("config")
-    
+
     @config.setter
     def config(self, value: Config) -> None:
         self.set_attribute("config", value)
-    
+
     def get_name(self):
         # TODO
         return self._setting.get_name()
-    
+
     def _is_readable(self, attribute: str) -> bool:
         return attribute not in _hidden_attributes[self._setting_type]
 
@@ -148,54 +144,36 @@ class SettingProxy(SettingABC, Generic[SettingType]):
     def set_attribute(self, name: str, value: Any) -> None:
         return setattr(self._setting, name, value)
 
-    def train_dataloader(
-        self, batch_size: int = None, num_workers: int = None
-    ) -> EnvironmentProxy:
+    def train_dataloader(self, batch_size: int = None, num_workers: int = None) -> EnvironmentProxy:
         # TODO: Faking this 'remote-ness' for now:
-        
+
         batch_size = batch_size if batch_size is not None else self.get_attribute("batch_size")
         num_workers = num_workers if num_workers is not None else self.get_attribute("num_workers")
-        
+
         self.train_env = EnvironmentProxy(
-            env_fn=partial(
-                self._setting.train_dataloader,
-                batch_size=batch_size,
-                num_workers=num_workers,
-            ),
+            env_fn=partial(self._setting.train_dataloader, batch_size=batch_size, num_workers=num_workers,),
             setting_type=self._setting_type,
         )
         return self.train_env
 
-    def val_dataloader(
-        self, batch_size: int = None, num_workers: int = None
-    ) -> EnvironmentProxy:
-        
+    def val_dataloader(self, batch_size: int = None, num_workers: int = None) -> EnvironmentProxy:
+
         batch_size = batch_size if batch_size is not None else self.get_attribute("batch_size")
         num_workers = num_workers if num_workers is not None else self.get_attribute("num_workers")
-        
+
         self.valid_env = EnvironmentProxy(
-            env_fn=partial(
-                self._setting.val_dataloader,
-                batch_size=batch_size,
-                num_workers=num_workers,
-            ),
+            env_fn=partial(self._setting.val_dataloader, batch_size=batch_size, num_workers=num_workers,),
             setting_type=self._setting_type,
         )
         return self.valid_env
 
-    def test_dataloader(
-        self, batch_size: int = None, num_workers: int = None
-    ) -> EnvironmentProxy:
+    def test_dataloader(self, batch_size: int = None, num_workers: int = None) -> EnvironmentProxy:
 
         batch_size = batch_size if batch_size is not None else self.get_attribute("batch_size")
         num_workers = num_workers if num_workers is not None else self.get_attribute("num_workers")
 
         self.test_env = EnvironmentProxy(
-            env_fn=partial(
-                self._setting.test_dataloader,
-                batch_size=batch_size,
-                num_workers=num_workers,
-            ),
+            env_fn=partial(self._setting.test_dataloader, batch_size=batch_size, num_workers=num_workers,),
             setting_type=self._setting_type,
         )
         return self.test_env
@@ -204,15 +182,11 @@ class SettingProxy(SettingABC, Generic[SettingType]):
         """ (WIP): Runs an incremental training loop, wether in RL or CL."""
 
         nb_tasks = self.get_attribute("nb_tasks")
-        known_task_boundaries_at_train_time = self.get_attribute(
-            "known_task_boundaries_at_train_time"
-        )
+        known_task_boundaries_at_train_time = self.get_attribute("known_task_boundaries_at_train_time")
         task_labels_at_train_time = self.get_attribute("task_labels_at_train_time")
 
         for task_id in range(nb_tasks):
-            logger.info(
-                f"Starting training" + (f" on task {task_id}." if nb_tasks > 1 else ".")
-            )
+            logger.info(f"Starting training" + (f" on task {task_id}." if nb_tasks > 1 else "."))
             self.set_attribute("_current_task_id", task_id)
 
             if known_task_boundaries_at_train_time:
@@ -243,9 +217,7 @@ class SettingProxy(SettingABC, Generic[SettingType]):
 
             task_train_loader = self.train_dataloader()
             task_valid_loader = self.val_dataloader()
-            success = method.fit(
-                train_env=task_train_loader, valid_env=task_valid_loader,
-            )
+            success = method.fit(train_env=task_train_loader, valid_env=task_valid_loader,)
             task_train_loader.close()
             task_valid_loader.close()
             logger.info(f"Finished Training on task {task_id}.")
@@ -266,9 +238,7 @@ class SettingProxy(SettingABC, Generic[SettingType]):
         Supervised or Reinforcement learning settings.
         """
         nb_tasks = self.get_attribute("nb_tasks")
-        known_task_boundaries_at_test_time = self.get_attribute(
-            "known_task_boundaries_at_test_time"
-        )
+        known_task_boundaries_at_test_time = self.get_attribute("known_task_boundaries_at_test_time")
         task_labels_at_test_time = self.get_attribute("task_labels_at_test_time")
 
         test_env = self.test_dataloader()
@@ -322,10 +292,7 @@ class SettingProxy(SettingABC, Generic[SettingType]):
         if self._is_readable(name):
             print(f"Accessing missing attribute {name} from the 'remote' setting.")
             return self.get_attribute(name)
-        raise AttributeError(
-            f"Attribute {name} is either not present on the setting, or not marked as "
-            f"readable!"
-        )
+        raise AttributeError(f"Attribute {name} is either not present on the setting, or not marked as " f"readable!")
 
     # def __setattr__(self, name: str, value: Any) -> None:
     #     # Weird pytorch-lightning stuff:
