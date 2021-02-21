@@ -3,7 +3,7 @@ RUN apt-get update && apt-get install -y git zsh nano xvfb freeglut3-dev pkg-con
 # moved this up so it doesn't rerun on every build
 RUN pip install --upgrade git+https://www.github.com/lebrice/Sequoia.git@cvpr_competition_dev#egg=sequoia[monsterkong] wandb
 WORKDIR /app
-COPY . .
+COPY ./build/ .
 # just making sure we got everything
 #RUN pip install --upgrade -r requirements.txt # NO, this breaks wandb
 CMD xvfb-run --server-args="-screen 0 800x600x24+32" python ./main.py --mode sl

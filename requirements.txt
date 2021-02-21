@@ -1,1 +1,2 @@
 sequoia[monsterkong] @ git+https://www.github.com/lebrice/Sequoia.git@cvpr_competition_dev#egg=sequoia
+evalai
