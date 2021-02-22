@@ -38,7 +38,7 @@ upload-sl:
 
 	docker build -t clcomp21-submission:v0 .
 	#docker run -it sequoia-seed # this tests container locally
-	evalai push clcomp21-submission:v0 -p cvpr21-dev-466 # replace this with link to SL challenge
+	evalai push clcomp21-submission:v0 -p cvpr21-test-466 # replace this with link to SL challenge
 	# cleanup
 	rm -r ./build/ || true
 
