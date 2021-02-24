@@ -6,10 +6,12 @@ This repo will serve as the seed repo for the challenge, containing a docker-com
 
 We assume you have `make` installed, as well as miniconda or anaconda on your PATH.
 
-Cd into this directory and then run
+1. Get your API AUthentication token from the [EvalAI Website](https://eval.ai/web/profile).
+
+2. From the root directory of the repository, run the following command:
 
 ```console
-$ make install
+$ ./install.sh <EVALAI_TOKEN>
 $ conda activate clcomp21
 ```
 
