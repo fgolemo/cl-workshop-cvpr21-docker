@@ -1,14 +1,6 @@
-#### TODO: FIX THIS TO WORK WITH CONDA ACTIVATE, see here https://stackoverflow.com/questions/53382383/makefile-cant-use-conda-activate
-#### TODO: FOR NOW YOU HAVE TO MANUALLY CALL THE COMMANDS IN make install
-
 # run with `make install EVALAI_TOKEN=...`
 install:
-	echo "=== CREATING NEW CONDA ENV 'clcomp21'"
-	conda env create -f environment.yaml
-	#conda activate clcomp21
-	pip install -r requirements.txt
-	evalai set_token EVALAI_TOKEN
-	echo "=== DONE. Now run 'make sl' for running the sl track or 'make rl' for the RL track or 'make help'"
+	./install.sh
 
 sl:
 	echo "=== RUNNING SL TRACK"
@@ -37,8 +29,8 @@ upload-sl:
 	rm -rf ./build/results || true
 
 	docker build -t clcomp21-submission:v0 .
-	#docker run -it sequoia-seed # this tests container locally
-	evalai push clcomp21-submission:v0 -p cvpr21-test-466 # replace this with link to SL challenge
+	docker run -it sequoia-seed # this tests container locally
+	# evalai push clcomp21-submission:v0 -p cvpr21-test-466 # replace this with link to SL challenge
 	# cleanup
 	rm -r ./build/ || true
 

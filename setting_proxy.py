@@ -5,7 +5,7 @@ from functools import partial
 from logging import getLogger
 from pathlib import Path
 from typing import Any, Dict, Generic, List, Type, TypeVar, Optional
-
+import time
 import gym
 import numpy as np
 import tqdm
@@ -21,7 +21,7 @@ from sequoia.settings import (
     Rewards,
     Setting,
 )
-from sequoia.settings.assumptions import IncrementalSetting
+from sequoia.settings.assumptions.incremental import IncrementalSetting, TaskResults, TaskSequenceResults
 from sequoia.settings.base import SettingABC
 from torch import Tensor
 
@@ -117,10 +117,8 @@ class SettingProxy(SettingABC, Generic[SettingType]):
         # TODO: Figure out where the 'config' should be defined?
         method.configure(setting=self)
 
-        # Run the Training loop.
-        self.train_loop(method)
-        # Run the Test loop.
-        results: Results = self.test_loop(method)
+        # Run the Main loop.
+        results: Results = self.main_loop(method)
 
         logger.info(f"Resulting objective of Test Loop: {results.objective}")
         logger.info(results.summary())
@@ -178,13 +176,14 @@ class SettingProxy(SettingABC, Generic[SettingType]):
         )
         return self.test_env
 
-    def train_loop(self, method: Method):
-        """ (WIP): Runs an incremental training loop, wether in RL or CL."""
+    def main_loop(self, method: Method) -> Results:
+        # TODO: Implement the 'remote' equivalent of the main loop of the IncrementalSetting.
 
+        test_results = self._setting_type.Results()
         nb_tasks = self.get_attribute("nb_tasks")
         known_task_boundaries_at_train_time = self.get_attribute("known_task_boundaries_at_train_time")
         task_labels_at_train_time = self.get_attribute("task_labels_at_train_time")
-
+        start_time = time.process_time()
         for task_id in range(nb_tasks):
             logger.info(f"Starting training" + (f" on task {task_id}." if nb_tasks > 1 else "."))
             self.set_attribute("_current_task_id", task_id)
@@ -220,7 +219,15 @@ class SettingProxy(SettingABC, Generic[SettingType]):
             success = method.fit(train_env=task_train_loader, valid_env=task_valid_loader,)
             task_train_loader.close()
             task_valid_loader.close()
+            
+            test_loop_results = self.test_loop(method)
+            test_results.append(test_loop_results)
+
             logger.info(f"Finished Training on task {task_id}.")
+        
+        runtime = time.process_time() - start_time
+        test_results._runtime = runtime
+        return test_results
 
     def test_loop(self, method: Method) -> "IncrementalSetting.Results":
         """ (WIP): Runs an incremental test loop and returns the Results.

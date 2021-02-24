@@ -6,10 +6,11 @@ This repo will serve as the seed repo for the challenge, containing a docker-com
 
 We assume you have `make` installed, as well as miniconda or anaconda on your PATH.
 
-Cd into this directory and then
-  
-```bash
-make install
+Cd into this directory and then run
+
+```console
+$ make install
+$ conda activate clcomp21
 ```
 
 ## Running the tracks locally:
