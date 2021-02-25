@@ -24,6 +24,8 @@ or from `submission/classification_method.py` which is a standard neural net cla
 
 make sure the `submission/submission.py` script actually calls your method.
 
+For more details on how to develop methods within our framework Sequoia and to understand how to leverage its funtionalities, algorithms and models, please check out the [codebase of the librairie](https://github.com/lebrice/Sequoia/).
+
 
 ## Running the tracks locally:
 
