@@ -14,8 +14,6 @@ See repo for CVPR'21 Continual Learning Challenge, both for the Supervised Learn
 
 ## Setup
 
-We also assume, you have Docker installed **and running**. We need docker to bundle up the submission and send them to our server for evaluation.
-
 1. Get your API Authentication token from the [EvalAI Website in your profile](https://eval.ai/web/profile).
 
 2. From the root directory of the repository, run the following command:
