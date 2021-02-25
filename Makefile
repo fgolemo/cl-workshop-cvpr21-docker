@@ -29,8 +29,8 @@ upload-sl:
 	rm -rf ./build/results || true
 
 	docker build -t clcomp21-submission:v0 .
-	docker run -it clcomp21-submission:v0 # this tests container locally
-	# evalai push clcomp21-submission:v0 -p cvpr21-test-466 # replace this with link to SL challenge
+	#docker run -it clcomp21-submission:v0 # this tests container locally
+	evalai push clcomp21-submission:v0 -p cvpr21-test-466 # replace this with link to SL challenge
 
 	# cleanup
 	rm -r ./build/ || true
