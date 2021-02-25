@@ -20,7 +20,7 @@ upload-sl:
 	rm -r ./build/ || true
 	mkdir build
 
-	cp -r ./*.py ./buildı
+	cp -r ./*.py ./build
 	cp -r ./*.yaml ./build
 	cp -r ./submission ./build
 
