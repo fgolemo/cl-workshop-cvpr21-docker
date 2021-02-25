@@ -1,4 +1,4 @@
-# cl-workshop-cvpr21-docker
+# CVPR'21 Continual Learning Challenge Seed
 
 See repo for CVPR'21 Continual Learning Challenge, both for the Supervised Learning and Reinforcement Learning track.
 
