@@ -1,35 +1,33 @@
 """ Demo: Creates a simple new method and applies it to a single CL setting.
 """
-from sequoia.methods import Method
-from sequoia.settings import ClassIncrementalSetting
 import sys
-from dataclasses import dataclass
-from typing import Dict, List, Tuple, Type
-
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Dict, List, Tuple, Type, Optional
 
 import gym
 import pandas as pd
-import tqdm
 import torch
-from numpy import inf
+import tqdm
 from gym import spaces
-from torch import Tensor, nn
-from torchvision.models import resnet18, ResNet
-from simple_parsing import ArgumentParser
-
+from numpy import inf
 from sequoia import Method, Setting
 from sequoia.common.hparams import HyperParameters, log_uniform
 from sequoia.common.spaces import Image
+from sequoia.methods import Method
 from sequoia.settings import ClassIncrementalSetting
 from sequoia.settings.passive.cl.objects import (
     Actions,
+    Environment,
     Observations,
     PassiveEnvironment,
     Results,
     Rewards,
 )
+from simple_parsing import ArgumentParser
+from torch import Tensor, nn
+from torchvision.models import ResNet, resnet18
 
 
 class ExampleModel(nn.Module):
@@ -41,7 +39,10 @@ class ExampleModel(nn.Module):
     """
 
     def __init__(
-        self, observation_space: gym.Space, action_space: gym.Space, reward_space: gym.Space,
+        self,
+        observation_space: gym.Space,
+        action_space: gym.Space,
+        reward_space: gym.Space,
     ):
         super().__init__()
         image_space: Image = observation_space.x
@@ -88,7 +89,9 @@ class ExampleModel(nn.Module):
             resnet.fc = nn.Sequential()
             encoder = resnet
         else:
-            raise NotImplementedError(f"No encoder registered for the given image space {image_space}")
+            raise NotImplementedError(
+                f"No encoder registered for the given image space {image_space}"
+            )
         return encoder, features
 
     def forward(self, observations: Observations) -> Tensor:
@@ -99,22 +102,47 @@ class ExampleModel(nn.Module):
         logits = self.classifier(features)
         return logits
 
-    def training_step(self, batch: Tuple[Observations, Rewards], *args, **kwargs):
-        return self.shared_step(batch, *args, **kwargs)
+    def shared_step(
+        self, batch: Tuple[Observations, Optional[Rewards]], environment: Environment
+    ) -> Tuple[Tensor, Dict]:
+        """Shared step used for both training and validation.
+                
+        Parameters
+        ----------
+        batch : Tuple[Observations, Optional[Rewards]]
+            Batch containing Observations, and optional Rewards. When the Rewards are
+            None, it means that we'll need to provide the Environment with actions
+            before we can get the Rewards (e.g. image labels) back.
+            
+            This happens for example when being applied in a Setting which cares about
+            sample efficiency or training performance, for example.
+            
+        environment : Environment
+            The environment we're currently interacting with. Used to provide the
+            rewards when they aren't already part of the batch (as mentioned above).
 
-    def validation_step(self, batch: Tuple[Observations, Rewards], *args, **kwargs):
-        return self.shared_step(batch, *args, **kwargs)
-
-    def shared_step(self, batch: Tuple[Observations, Rewards], *args, **kwargs):
-        # Since we're training on a Passive environment, we get both
-        # observations and rewards.
+        Returns
+        -------
+        Tuple[Tensor, Dict]
+            The Loss tensor, and a dict of metrics to be logged.
+        """
+        # Since we're training on a Passive environment, we will get both observations
+        # and rewards, unless we're being evaluated based on our training performance,
+        # in which case we will need to send actions to the environments before we can
+        # get the corresponding rewards (image labels).
         observations: Observations = batch[0]
-        rewards: Rewards = batch[1]
-        image_labels = rewards.y
-
+        rewards: Optional[Rewards] = batch[1]
         # Get the predictions:
         logits = self(observations)
         y_pred = logits.argmax(-1)
+
+        if rewards is None:
+            # If the rewards in the batch is None, it means we're expected to give
+            # actions before we can get rewards back from the environment.
+            rewards = environment.send(Actions(y_pred))
+
+        assert rewards is not None
+        image_labels = rewards.y
 
         loss = self.loss(logits, image_labels)
 
@@ -136,8 +164,8 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
         # Learning rate of the optimizer.
         learning_rate: float = log_uniform(1e-6, 1e-2, default=0.001)
 
-    def __init__(self, hparams: HParams):
-        self.hparams: ExampleMethod.HParams = hparams
+    def __init__(self, hparams: HParams = None):
+        self.hparams: ExampleMethod.HParams = hparams or self.HParams()
         self.max_epochs: int = 1
         self.early_stop_patience: int = 2
 
@@ -156,7 +184,9 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
             action_space=setting.action_space,
             reward_space=setting.reward_space,
         )
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.hparams.learning_rate)
+        self.optimizer = torch.optim.Adam(
+            self.model.parameters(), lr=self.hparams.learning_rate
+        )
 
     def fit(self, train_env: PassiveEnvironment, valid_env: PassiveEnvironment):
         """ Example train loop.
@@ -176,7 +206,7 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
                 postfix = {}
                 train_pbar.set_description(f"Training Epoch {epoch}")
                 for i, batch in enumerate(train_pbar):
-                    loss, metrics_dict = self.model.training_step(batch)
+                    loss, metrics_dict = self.model.shared_step(batch, environment=train_env)
                     self.optimizer.zero_grad()
                     loss.backward()
                     self.optimizer.step()
@@ -192,7 +222,7 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
                 epoch_val_loss = 0.0
 
                 for i, batch in enumerate(val_pbar):
-                    batch_val_loss, metrics_dict = self.model.validation_step(batch)
+                    batch_val_loss, metrics_dict = self.model.shared_step(batch, environment=valid_env)
                     epoch_val_loss += batch_val_loss
                     postfix.update(metrics_dict, val_loss=epoch_val_loss)
                     val_pbar.set_postfix(postfix)
@@ -204,7 +234,9 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
             if i - best_epoch > self.early_stop_patience:
                 print(f"Early stopping at epoch {i}.")
 
-    def get_actions(self, observations: Observations, action_space: gym.Space) -> Actions:
+    def get_actions(
+        self, observations: Observations, action_space: gym.Space
+    ) -> Actions:
         """ Get a batch of predictions (aka actions) for these observations. """
         with torch.no_grad():
             logits = self.model(observations)

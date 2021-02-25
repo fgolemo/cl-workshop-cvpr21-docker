@@ -73,6 +73,7 @@ class SettingProxy(SettingABC, Generic[SettingType]):
             self._setting = setting_type.load_benchmark(setting_config_path)
         else:
             self._setting = setting_type(**setting_kwargs)
+        self._setting.monitor_training_performance = True
         super().__init__()
 
     @property
@@ -261,7 +262,7 @@ class SettingProxy(SettingABC, Generic[SettingType]):
             pass
 
         obs = test_env.reset()
-        max_steps: int = self.get_attribute("test_steps")
+        max_steps: int = self.get_attribute("test_steps") // test_env.batch_size
 
         # Reset on the last step is causing trouble, since the env is closed.
         pbar = tqdm.tqdm(itertools.count(), total=max_steps, desc="Test")

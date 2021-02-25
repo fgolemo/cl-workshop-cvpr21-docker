@@ -30,6 +30,9 @@ class EnvironmentProxy(Environment[ObservationType, ActionType, RewardType]):
         self.observation_space = self.get_attribute("observation_space")
         self.action_space = self.get_attribute("action_space")
         self.reward_space = self.get_attribute("reward_space")
+        # TODO: Double check this also works for RL
+        self.batch_size: Optional[int] = self.get_attribute("batch_size")
+        
 
     def get_attribute(self, name: str):
         # TODO: actually get the value from the 'remote' env.
