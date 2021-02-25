@@ -15,6 +15,16 @@ $ ./install.sh <EVALAI_TOKEN>
 $ conda activate clcomp21
 ```
 
+## creating you solution
+
+develop a new solution in the `submission/` folder. 
+
+You can draw inspiration form the `submission/dummy_method.py` which is a random predictor,
+or from `submission/classification_method.py` which is a standard neural net classifier.
+
+make sure the `submission/submission.py` script actually calls your method.
+
+
 ## Running the tracks locally:
 
 - Supervised Learning track:
