@@ -28,7 +28,7 @@ def get_method_sl() -> Method[PassiveSetting]:
     # return ExampleMethod(hparams=ExampleMethod.HParams())
 
     # This is a dummy solution that returns random actions for every observation.
-    return DummyMethod()  # this is a dummy solution that returns random results
+    return DummyMethod()
 
 
 def get_method_rl() -> Method[ActiveSetting]:
