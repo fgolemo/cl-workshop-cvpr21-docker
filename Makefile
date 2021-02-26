@@ -28,8 +28,8 @@ upload-sl:
 	rm -rf ./build/scripts || true
 	rm -rf ./build/results || true
 
-	docker build -t clcomp21-submission:v0 .
-	evalai push clcomp21-submission:v0 -p cvpr21-test-466 # replace this with link to SL challenge
+	docker build -t clcomp21-submission-sl:v0 .
+	evalai push clcomp21-submission-sl:v0 -p cvpr21-sl-829
 
 	# cleanup
 	rm -r ./build/ || true
