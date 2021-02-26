@@ -1,14 +1,17 @@
 import itertools
+import time
 import warnings
 from abc import ABC, abstractmethod
 from functools import partial
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Type, TypeVar, Optional
-import time
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
+
 import gym
 import numpy as np
 import tqdm
+from gym.vector.utils.spaces import batch_space
+from torch import Tensor
 from sequoia.common.config import Config
 from sequoia.common.gym_wrappers import StepCallbackWrapper
 from sequoia.methods import Method
@@ -27,7 +30,6 @@ from sequoia.settings.assumptions.incremental import (
     TaskSequenceResults,
 )
 from sequoia.settings.base import SettingABC
-from torch import Tensor
 
 from env_proxy import EnvironmentProxy
 
@@ -227,7 +229,7 @@ class SettingProxy(SettingABC, Generic[SettingType]):
 
         test_results = self._setting_type.Results()
         test_results._online_training_performance = []
-        
+
         nb_tasks = self.get_attribute("nb_tasks")
         known_task_boundaries_at_train_time = self.get_attribute(
             "known_task_boundaries_at_train_time"
@@ -331,8 +333,18 @@ class SettingProxy(SettingABC, Generic[SettingType]):
             if test_env.is_closed():
                 logger.debug(f"Env is closed")
                 break
-            # logger.debug(f"At step {step}")
-            action = method.get_actions(obs, test_env.action_space)
+
+            # NOTE: Need to pass an action space that actually reflects the batch
+            # size, even for the last batch!
+            obs_batch_size = obs.x.shape[0] if obs.x.shape else None
+            action_space_batch_size = (
+                test_env.action_space.shape[0] if test_env.action_space.shape else None
+            )
+            if obs_batch_size is not None and obs_batch_size != action_space_batch_size:
+                action_space = batch_space(test_env.single_action_space, obs_batch_size)
+            else:
+                action_space = test_env.action_space
+            action = method.get_actions(obs, action_space)
 
             # logger.debug(f"action: {action}")
             obs, reward, done, info = test_env.step(action)
