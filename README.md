@@ -6,8 +6,8 @@ See repo for CVPR'21 Continual Learning Challenge, both for the Supervised Learn
 
 - Install Docker (or Docker Desktop if you're on Mac/Win) and **make sure it's running**
 - Install Unix command line tools (like `rm`, and `make`) 
-    - On Linux, you already have them
-    - On Mac, install `homebrew` and the make package
+    - On Linux, you already have everything
+    - On Mac, install `homebrew` and through homebrew, the `make` package
     - On Windows... idk, wipe your hard drive and install a proper OS? (Or try Cygwin or Windows Subsystem for Linux)
 - Install Miniconda/Anaconda and have the conda/python/pip binaries for that available on your `$PATH` and in your shell.
 
