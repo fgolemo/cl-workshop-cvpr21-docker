@@ -4,7 +4,7 @@ EVALAI_TOKEN=${1?"Usage: $0 <EVALAI_TOKEN>"}
 
 
 echo "=== CREATING CONDA ENV 'clcomp21'"
-source `conda info --base`/bin/activate base
+#source `conda info --base`/bin/activate base
 conda env create -f environment.yaml || true
 conda activate clcomp21
 
