@@ -1,10 +1,15 @@
 """ Demo: Creates a simple new method and applies it to a single CL setting.
+
+To run this example on one the Settings defined below:
+```console
+$ python submission/example_method.py
+```
 """
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple, Type, Optional
+from typing import Dict, List, Optional, Tuple, Type
 
 import gym
 import pandas as pd
@@ -30,12 +35,10 @@ from torch import Tensor, nn
 from torchvision.models import ResNet, resnet18
 
 
-class ExampleModel(nn.Module):
+class Classifier(nn.Module):
     """ Simple classification model without any CL-related mechanism.
 
-    To keep things simple, this demo model is designed for supervised
-    (classification) settings where observations have shape [3, 28, 28] (ie the
-    MNIST variants: Mnist, FashionMnist, RotatedMnist, EMnist, etc.)
+    This example model uses a resnet18 as the encoder, and a single output layer.
     """
 
     def __init__(
@@ -48,30 +51,43 @@ class ExampleModel(nn.Module):
         image_space: Image = observation_space.x
         image_shape = observation_space[0].shape
 
-        # This only works for classification / discrete action spaces.
+        # This example is intended for classification / discrete action spaces.
         assert isinstance(action_space, spaces.Discrete)
         assert action_space == reward_space
         n_classes = action_space.n
 
         self.encoder, self.representations_size = self.create_encoder(image_space)
         self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(self.representations_size, 120),
-            nn.ReLU(),
-            nn.Linear(120, 84),
-            nn.ReLU(),
-            nn.Linear(84, n_classes),
+            nn.Flatten(), nn.Linear(self.representations_size, n_classes),
         )
         self.loss = nn.CrossEntropyLoss()
 
     def create_encoder(self, image_space: Image) -> Tuple[nn.Module, int]:
-        """ Create an encoder for the given image space. Returns the encoder, as well as
-        the size of the resulting representations.
+        """Create an encoder for the given image space.
+        
+        Returns the encoder, as well as the size of the representations it will produce.
+
+        Parameters
+        ----------
+        image_space : Image
+            A subclass of `gym.spaces.Box` for images. Represents the space the images
+            will come from during training and testing. Its attributes of interest
+            include `c`, `w`, `h`, `shape` and `dype`.
+
+        Returns
+        -------
+        Tuple[nn.Module, int]
+            The encoder to be used, (a nn.Module), as well as the size of the
+            representations it will produce.
+
+        Raises
+        ------
+        NotImplementedError
+            If no encoder is available for the given image dimensions.
         """
-        # TODO: THe input space here (from the quick_demo.py file in Sequoia) is based
-        # on MNIST, whereas the SL tracks will use `synbols`, which has 228x228 images.
         if image_space.width == image_space.height == 28:
-            # MNIST / Fashion-MNIST etc setup.
+            # Setup for mnist variants.
+            # (not part of the competition, but used for debugging below).
             encoder = nn.Sequential(
                 nn.Conv2d(image_space.channels, 6, 5),
                 nn.ReLU(),
@@ -82,7 +98,7 @@ class ExampleModel(nn.Module):
             )
             features = 256
         elif image_space.width == image_space.height == 224:
-            # Synbols dataset:
+            # Synbols dataset: use a resnet18 by default.
             resnet: ResNet = resnet18()
             features = resnet.fc.in_features
             # Disable/Remove the last layer.
@@ -90,7 +106,7 @@ class ExampleModel(nn.Module):
             encoder = resnet
         else:
             raise NotImplementedError(
-                f"No encoder registered for the given image space {image_space}"
+                f"TODO: Add an encoder for the given image space {image_space}"
             )
         return encoder, features
 
@@ -152,9 +168,9 @@ class ExampleModel(nn.Module):
 
 
 class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
-    """ Minimal example of a Method targetting the Class-Incremental CL setting.
-
-    For a quick intro to dataclasses, see examples/dataclasses_example.py    
+    """ Minimal example of a Method usable only in the SL track of the competition.
+    
+    This method uses the ExampleModel, which is quite simple.
     """
 
     @dataclass
@@ -170,7 +186,7 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
         self.early_stop_patience: int = 2
 
         # We will create those when `configure` will be called, before training.
-        self.model: ExampleModel
+        self.model: Classifier
         self.optimizer: torch.optim.Optimizer
 
     def configure(self, setting: ClassIncrementalSetting):
@@ -179,7 +195,7 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
         You can use this to instantiate your model, for instance, since this is
         where you get access to the observation & action spaces.
         """
-        self.model = ExampleModel(
+        self.model = Classifier(
             observation_space=setting.observation_space,
             action_space=setting.action_space,
             reward_space=setting.reward_space,
@@ -206,7 +222,9 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
                 postfix = {}
                 train_pbar.set_description(f"Training Epoch {epoch}")
                 for i, batch in enumerate(train_pbar):
-                    loss, metrics_dict = self.model.shared_step(batch, environment=train_env)
+                    loss, metrics_dict = self.model.shared_step(
+                        batch, environment=train_env
+                    )
                     self.optimizer.zero_grad()
                     loss.backward()
                     self.optimizer.step()
@@ -222,7 +240,9 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
                 epoch_val_loss = 0.0
 
                 for i, batch in enumerate(val_pbar):
-                    batch_val_loss, metrics_dict = self.model.shared_step(batch, environment=valid_env)
+                    batch_val_loss, metrics_dict = self.model.shared_step(
+                        batch, environment=valid_env
+                    )
                     epoch_val_loss += batch_val_loss
                     postfix.update(metrics_dict, val_loss=epoch_val_loss)
                     val_pbar.set_postfix(postfix)
@@ -254,3 +274,55 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
         """Creates an instance of this Method from the parsed arguments."""
         hparams: ExampleMethod.HParams = args.hparams
         return cls(hparams=hparams)
+
+
+if __name__ == "__main__":
+    from sequoia.common import Config
+    from sequoia.settings import (
+        ClassIncrementalSetting,
+        DomainIncrementalSetting,
+        TaskIncrementalSetting,
+    )
+
+    ## Create the Method:
+
+    # - Manually:
+    # method = ExampleMethod()
+
+    # - From the command-line:
+    from simple_parsing import ArgumentParser
+    parser = ArgumentParser()
+    ExampleMethod.add_argparse_args(parser)
+    args = parser.parse_args()
+    method = ExampleMethod.from_argparse_args(args)
+
+
+    ## Create the Setting:
+
+    # - "Easy": Domain-Incremental MNIST Setting, useful for quick debugging, but
+    #           beware that the action space is different than in class-incremental!
+    #           (which is the type of Setting used in the SL track!)
+    # setting = DomainIncrementalSetting(
+    #     dataset="mnist", nb_tasks=5, monitor_training_performance=True
+    # )
+
+    - "Medium": Class-Incremental MNIST Setting, useful for quick debugging:
+    setting = ClassIncrementalSetting(
+        dataset="mnist",
+        nb_tasks=5,
+        monitor_training_performance=True,
+        known_task_boundaries_at_test_time=False,
+    )
+
+    # - "HARD": Class-Incremental Synbols, more challenging.
+    # NOTE: This Setting is very similar to the one used for the SL track of the
+    # competition.
+    # setting = ClassIncrementalSetting(
+    #     dataset="synbols",
+    #     nb_tasks=12,
+    #     known_task_boundaries_at_test_time=False,
+    #     monitor_training_performance=True,
+    # )
+
+    results = setting.apply(method, config=Config(debug=True, data_dir="./data"))
+    print(results.summary())
