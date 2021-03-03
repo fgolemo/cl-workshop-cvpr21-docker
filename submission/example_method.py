@@ -306,7 +306,7 @@ if __name__ == "__main__":
     #     dataset="mnist", nb_tasks=5, monitor_training_performance=True
     # )
 
-    - "Medium": Class-Incremental MNIST Setting, useful for quick debugging:
+    # - "Medium": Class-Incremental MNIST Setting, useful for quick debugging:
     setting = ClassIncrementalSetting(
         dataset="mnist",
         nb_tasks=5,
