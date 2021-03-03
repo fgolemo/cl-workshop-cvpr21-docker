@@ -1,6 +1,9 @@
 # CVPR'21 Continual Learning Challenge Seed
 
-See repo for CVPR'21 Continual Learning Challenge, both for the Supervised Learning and Reinforcement Learning track.
+Seed repo for the [CVPR'21 Continual Learning Challenge](https://eval.ai/web/challenges/challenge-page/829/overview).
+
+This competition is centered around [Sequoia](https://github.com/lebrice/Sequoia), a framework for standardizing and organizing ML research problems, particularly in the field of Continual Learning, both in CRL and CSL.
+
 
 Join the community on the [ContinualAI slack](https://join.slack.com/t/continualai/shared_invite/enQtNjQxNDYwMzkxNzk0LTBhYjg2MjM0YTM2OWRkNDYzOGE0ZTIzNDQ0ZGMzNDE3ZGUxNTZmNmM1YzJiYzgwMTkyZDQxYTlkMTI3NzZkNjU) (the #cl-workshop channel)
 
@@ -19,7 +22,7 @@ Join the community on the [ContinualAI slack](https://join.slack.com/t/continual
 1. Get your API Authentication token from [you profile on the EvalAI Website](https://eval.ai/web/profile),
    and copy it into the `evalai_token.txt` file.
 
-2. From the root directory of the repository, run the `./install.sh` script.
+2. From the root directory of the repository, run the `./install.sh` script and activate the `clcomp21` environment.
 
 ```console
 ./install.sh
@@ -44,7 +47,7 @@ Submissions should be contained in the `submission/` folder. You can draw inspir
 
 Make sure to change the contents of `submission/submission.py`, so that the various `get_method` actually return your method to use for each task (`get_method_sl` -> SL track, `get_method_rl` -> RL Track, `get_method` -> Both/Bonus track)
 
-For more details on how to develop methods within our framework and to understand how to leverage its functionalities, algorithms, and models, please check out [Sequoia, the library that this is all based on](https://github.com/lebrice/Sequoia/).
+For more information on the various CL Settings and Methods available in Sequoia, please check out [the Sequoia repository](https://github.com/lebrice/Sequoia/).
 
 
 ## Running the tracks locally:
