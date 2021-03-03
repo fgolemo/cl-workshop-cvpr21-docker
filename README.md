@@ -2,6 +2,8 @@
 
 See repo for CVPR'21 Continual Learning Challenge, both for the Supervised Learning and Reinforcement Learning track.
 
+Join the community on the [ContinualAI slack](https://join.slack.com/t/continualai/shared_invite/enQtNjQxNDYwMzkxNzk0LTBhYjg2MjM0YTM2OWRkNDYzOGE0ZTIzNDQ0ZGMzNDE3ZGUxNTZmNmM1YzJiYzgwMTkyZDQxYTlkMTI3NzZkNjU) (the #cl-workshop channel)
+
 ## Prerequisites
 
 - Install Docker (or Docker Desktop if you're on Mac/Win) and **make sure it's running**
