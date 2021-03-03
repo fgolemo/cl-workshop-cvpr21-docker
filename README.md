@@ -12,7 +12,7 @@ Join the community on the [ContinualAI slack](https://join.slack.com/t/continual
 - Install Unix command line tools (like `rm`, and `make`) 
     - On Linux, you already have everything
     - On Mac, install `homebrew` and through homebrew, the `make` package
-    - On Windows... idk, wipe your hard drive and install a proper OS? (Or try Cygwin or Windows Subsystem for Linux)
+    - On Windows, not 100% sure, but try using Powershell, Cygwin or Windows Subsystem for Linux
 - Install Miniconda/Anaconda and have the conda/python/pip binaries for that available on your `$PATH` and in your shell.
 - Create an account at http://eval.ai, create a participant team and click through the steps on the [challenge submission site](https://eval.ai/web/challenges/challenge-page/829/submission) (select your team, click next, agree to the terms & conditions) 
 
