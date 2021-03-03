@@ -56,13 +56,15 @@ class Classifier(nn.Module):
         # This example is intended for classification / discrete action spaces.
         assert isinstance(action_space, spaces.Discrete)
         assert action_space == reward_space
-        n_classes = action_space.n
+        self.n_classes = action_space.n
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.encoder, self.representations_size = self.create_encoder(image_space)
-        self.classifier = nn.Sequential(
-            nn.Flatten(), nn.Linear(self.representations_size, n_classes),
-        )
+        self.output = self.create_output_head()
         self.loss = nn.CrossEntropyLoss()
+
+    def create_output_head(self) -> nn.Module:
+        return nn.Linear(self.representations_size, self.n_classes).to(self.device)
 
     def create_encoder(self, image_space: Image) -> Tuple[nn.Module, int]:
         """Create an encoder for the given image space.
@@ -97,11 +99,12 @@ class Classifier(nn.Module):
                 nn.Conv2d(6, 16, 5),
                 nn.ReLU(),
                 nn.MaxPool2d(2),
+                nn.Flatten(),
             )
             features = 256
         elif image_space.width == image_space.height == 224:
             # Synbols dataset: use a resnet18 by default.
-            resnet: ResNet = resnet18()
+            resnet: ResNet = resnet18(pretrained=True)
             features = resnet.fc.in_features
             # Disable/Remove the last layer.
             resnet.fc = nn.Sequential()
@@ -110,14 +113,15 @@ class Classifier(nn.Module):
             raise NotImplementedError(
                 f"TODO: Add an encoder for the given image space {image_space}"
             )
-        return encoder, features
+        return encoder.to(self.device), features
 
     def forward(self, observations: Observations) -> Tensor:
         # NOTE: here we don't make use of the task labels.
+        observations = observations.to(self.device)
         x = observations.x
         task_labels = observations.task_labels
         features = self.encoder(x)
-        logits = self.classifier(features)
+        logits = self.output(features)
         return logits
 
     def shared_step(
@@ -158,14 +162,14 @@ class Classifier(nn.Module):
             # If the rewards in the batch is None, it means we're expected to give
             # actions before we can get rewards back from the environment.
             rewards = environment.send(Actions(y_pred))
-
+        
         assert rewards is not None
-        image_labels = rewards.y
+        image_labels = rewards.y.to(self.device)
 
         loss = self.loss(logits, image_labels)
 
         accuracy = (y_pred == image_labels).sum().float() / len(image_labels)
-        metrics_dict = {"accuracy": accuracy}
+        metrics_dict = {"accuracy": f"{accuracy.cpu().item():3.2%}"}
         return loss, metrics_dict
 
 
@@ -181,6 +185,8 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
 
         # Learning rate of the optimizer.
         learning_rate: float = log_uniform(1e-6, 1e-2, default=0.001)
+        # L2 regularization coefficient.
+        weight_decay: float = log_uniform(1e-9, 1e-3, default=1e-6)
 
     def __init__(self, hparams: HParams = None):
         self.hparams: ExampleMethod.HParams = hparams or self.HParams()
@@ -203,7 +209,9 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
             reward_space=setting.reward_space,
         )
         self.optimizer = torch.optim.Adam(
-            self.model.parameters(), lr=self.hparams.learning_rate
+            self.model.parameters(),
+            lr=self.hparams.learning_rate,
+            weight_decay=self.hparams.weight_decay,
         )
 
     def fit(self, train_env: PassiveEnvironment, valid_env: PassiveEnvironment):
@@ -293,11 +301,11 @@ if __name__ == "__main__":
 
     # - From the command-line:
     from simple_parsing import ArgumentParser
+
     parser = ArgumentParser()
     ExampleMethod.add_argparse_args(parser)
     args = parser.parse_args()
     method = ExampleMethod.from_argparse_args(args)
-
 
     ## Create the Setting:
 

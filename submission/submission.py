@@ -5,7 +5,7 @@ track.
 from sequoia import Method
 from sequoia.settings import PassiveSetting, ActiveSetting, Setting
 
-from submission.example_method import ExampleMethod
+from submission.SL_examples import ExampleMethod
 from submission.dummy_method import DummyMethod
 
 

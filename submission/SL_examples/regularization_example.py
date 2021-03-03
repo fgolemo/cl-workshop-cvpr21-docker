@@ -25,7 +25,7 @@ from sequoia.settings.passive.cl.objects import Observations, Rewards
 from sequoia.utils import dict_intersection
 from sequoia.utils.logging_utils import get_logger
 
-from .classifier import ExampleMethod, Classifier
+from submission.SL_examples.classifier import ExampleMethod, Classifier
 
 logger = get_logger(__file__)
 
@@ -60,7 +60,7 @@ class RegularizedClassifier(Classifier):
         metrics["ewc_loss"] = ewc_loss
         return base_loss + ewc_loss, metrics
 
-    def on_task_switch(self, task_id: int) -> None:
+    def on_task_switch(self, task_id: Optional[int]) -> None:
         """ Executed when the task switches (to either a known or unknown task).
         """
         if self._previous_task is None and self._n_switches == 0:
@@ -131,7 +131,9 @@ class ExampleRegMethod(ExampleMethod):
             reg_p_norm=self.hparams.reg_p_norm,
         )
         self.optimizer = torch.optim.Adam(
-            self.model.parameters(), lr=self.hparams.learning_rate,
+            self.model.parameters(),
+            lr=self.hparams.learning_rate,
+            weight_decay=self.hparams.weight_decay,
         )
 
     def on_task_switch(self, task_id: Optional[int]):
@@ -157,12 +159,6 @@ if __name__ == "__main__":
     ExampleRegMethod.add_argparse_args(parser)
     args = parser.parse_args()
     method = ExampleRegMethod.from_argparse_args(args)
-
-    from sequoia.settings import MultiTaskSetting
-    # Upper bound performance:
-    setting = MultiTaskSetting(
-        dataset="mnist", nb_tasks=5, monitor_training_performance=True
-    )
 
     ## Create the Setting:
 
