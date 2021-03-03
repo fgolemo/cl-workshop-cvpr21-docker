@@ -1,15 +1,7 @@
 import gym
 import numpy as np
+from sequoia import Method, ClassIncrementalSetting, PassiveEnvironment, Observations, Actions, Environment, Rewards
 import tqdm
-from sequoia import (
-    Actions,
-    ClassIncrementalSetting,
-    Environment,
-    Method,
-    Observations,
-    PassiveEnvironment,
-    Rewards,
-)
 
 
 class DummyMethod(Method, target_setting=ClassIncrementalSetting):
@@ -38,7 +30,7 @@ class DummyMethod(Method, target_setting=ClassIncrementalSetting):
         with tqdm.tqdm(train_env) as train_pbar:
             for i, (observations, rewards) in enumerate(train_pbar):
                 batch_size = observations.x.shape[0]
-
+                
                 y_pred = train_env.action_space.sample()
 
                 # If we're at the last batch, it might have a different size, so we give
@@ -50,10 +42,9 @@ class DummyMethod(Method, target_setting=ClassIncrementalSetting):
                     rewards = train_env.send(y_pred)
 
                 # train as you usually would.
+       
 
-    def get_actions(
-        self, observations: Observations, action_space: gym.Space
-    ) -> Actions:
+    def get_actions(self, observations: Observations, action_space: gym.Space) -> Actions:
         """ Get a batch of predictions (aka actions) for these observations. """
         y_pred = action_space.sample()
         assert action_space.shape[0] == observations.x.shape[0]
