@@ -1,8 +1,10 @@
-""" Demo: Creates a simple new method and applies it to a single CL setting.
+""" Example Method for the SL track: Uses a simple classifier, without any CL mechanism.
 
-To run this example on one the Settings defined below:
+As you'd expect, this Method exhibits complete forgetting of all previous tasks.
+
+To debug this method on one the Settings defined at the bottom of this file:
 ```console
-$ python submission/example_method.py
+$ python submission/examples/vanilla_classifier.py
 ```
 """
 import sys

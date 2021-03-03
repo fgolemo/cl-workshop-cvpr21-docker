@@ -1,4 +1,6 @@
-""" Example: Defines a new Method based on the ExampleMethod from `example_method.py`,
+
+
+""" Example: Defines a new Method based on the ExampleMethod from `simple_classifier.py`
 adding an EWC-like loss to prevent the weights from changing too much between tasks.
 
 
@@ -16,14 +18,14 @@ import gym
 import torch
 from torch import Tensor
 
-sys.path.extend([".", ".."])  # "Hack": used so we can run python submission/(...).py
+sys.path.extend([".", "..", "../.."])  # "Hack": used so we can run python submission/(...).py
 from sequoia.settings import DomainIncrementalSetting
 from sequoia.common.hparams import HyperParameters, uniform
 from sequoia.settings.passive.cl.objects import Observations, Rewards
 from sequoia.utils import dict_intersection
 from sequoia.utils.logging_utils import get_logger
 
-from example_method import ExampleMethod, Classifier
+from .classifier import ExampleMethod, Classifier
 
 logger = get_logger(__file__)
 
@@ -156,6 +158,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     method = ExampleRegMethod.from_argparse_args(args)
 
+    from sequoia.settings import MultiTaskSetting
+    # Upper bound performance:
+    setting = MultiTaskSetting(
+        dataset="mnist", nb_tasks=5, monitor_training_performance=True
+    )
+
     ## Create the Setting:
 
     # - "Easy": Domain-Incremental MNIST Setting, useful for quick debugging, but
@@ -166,12 +174,12 @@ if __name__ == "__main__":
     # )
 
     # - "Medium": Class-Incremental MNIST Setting, useful for quick debugging:
-    setting = ClassIncrementalSetting(
-        dataset="mnist",
-        nb_tasks=5,
-        monitor_training_performance=True,
-        known_task_boundaries_at_test_time=False,
-    )
+    # setting = ClassIncrementalSetting(
+    #     dataset="mnist",
+    #     nb_tasks=5,
+    #     monitor_training_performance=True,
+    #     known_task_boundaries_at_test_time=False,
+    # )
 
     # - "HARD": Class-Incremental Synbols, more challenging.
     # NOTE: This Setting is very similar to the one used for the SL track of the
