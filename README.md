@@ -17,22 +17,33 @@ Join the community on the [ContinualAI slack](https://join.slack.com/t/continual
 
 ## Setup
 
-1. Get your API Authentication token from the [EvalAI Website in your profile](https://eval.ai/web/profile).
+1. Get your API Authentication token from [you profile on the EvalAI Website](https://eval.ai/web/profile),
+   and copy it into the `evalai_token.txt` file.
 
-2. From the root directory of the repository, run the following command:
+2. From the root directory of the repository, run the `./install.sh` script.
 
 ```console
-./install.sh <EVALAI_TOKEN>
+./install.sh
 conda activate clcomp21
 ```
 
 ## Creating Your Solution
 
-Develop a new solution in the `submission/` folder. 
+Submissions should be contained in the `submission/` folder. You can draw inspiration from the following examples:
+- [submission/example_method.py](submission/example_method.py):
+    Standard neural net classifier without any CL-related mechanism. Works in the SL
+    track, but has very poor performance.
 
-You can draw inspiration from `submission/classification_method.py` which is a standard neural net classifier, which kinda works in the SL setting. The `submission/dummy_target.py` is a model-free example that outputs random predictions/actions but doesn't learn anything.
+- [submission/example_reg_method.py](submission/example_reg_method.py):
+    Adds a simple regularization loss to the example SL method above. Still exhibits
+    poor performance.
 
-Make sure the `submission/submission.py` script actually calls your method.
+- [submission/dummy_method.py](submission/dummy_method.py):
+    Model-free example that outputs random predictions/actions. Applicable to all tracks (RL and SL).
+
+- (More to be added shortly)
+
+Make sure to change the contents of `submission/submission.py`, so that the various `get_method` actually return your method to use for each task (`get_method_sl` -> SL track, `get_method_rl` -> RL Track, `get_method` -> Both/Bonus track)
 
 For more details on how to develop methods within our framework and to understand how to leverage its functionalities, algorithms, and models, please check out [Sequoia, the library that this is all based on](https://github.com/lebrice/Sequoia/).
 
