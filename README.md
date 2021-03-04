@@ -31,18 +31,22 @@ conda activate clcomp21
 ## Creating Your Solution
 
 Submissions should be contained in the `submission/` folder. You can draw inspiration from the following examples:
-- [submission/example_method.py](submission/example_method.py):
-    Standard neural net classifier without any CL-related mechanism. Works in the SL
-    track, but has very poor performance.
+ - [submission/dummy_method.py](submission/dummy_method.py):
+        Model-free example that outputs random predictions/actions. Applicable to all tracks (RL and SL).
+- [SL Examples](submission/SL_examples)
+    - [Simple Classifier](submission/SL_examples/classifier.py):
+        Standard neural net classifier without any CL-related mechanism. Works in the SL track, but has very poor performance.
 
-- [submission/example_reg_method.py](submission/example_reg_method.py):
-    Adds a simple regularization loss to the example SL method above. Still exhibits
-    poor performance.
+    - [CL Regularized Classifier](submission/SL_examples/regularization_example.py):
+        Adds a simple CL regularization loss to the classifier above. Still exhibits poor performance.
+    
+    - [Multi-Head / Task Inference Classifier](submission/SL_examples/multihead_classifier.py):
+        Performs multi-head prediction, and a simple form of task inference. Gets better results that the two previous methods.
 
-- [submission/dummy_method.py](submission/dummy_method.py):
-    Model-free example that outputs random predictions/actions. Applicable to all tracks (RL and SL).
+    - (More to be added shortly)
 
-- (More to be added shortly)
+- [RL Examples](submission/RL_examples) (coming soon!)
+- ["Both" Examples](submission/both_examples) (coming soon!)
 
 Make sure to change the contents of `submission/submission.py`, so that the various `get_method` actually return your method to use for each task (`get_method_sl` -> SL track, `get_method_rl` -> RL Track, `get_method` -> Both/Bonus track)
 

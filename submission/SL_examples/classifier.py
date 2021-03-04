@@ -189,7 +189,7 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
         weight_decay: float = log_uniform(1e-9, 1e-3, default=1e-6)
         
         # Maximum number of training epochs per task.
-        max_epochs_per_task: int = 1
+        max_epochs_per_task: int = 10
         # Number of epochs with increasing validation loss after which we stop training.
         early_stop_patience: int = 2
 
@@ -263,7 +263,7 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
             torch.set_grad_enabled(True)
 
             if epoch_val_loss < best_val_loss:
-                best_val_loss = valid_env
+                best_val_loss = epoch_val_loss
                 best_epoch = i
             if i - best_epoch > self.hparams.early_stop_patience:
                 print(f"Early stopping at epoch {i}.")
@@ -323,26 +323,25 @@ if __name__ == "__main__":
     # )
 
     # - "Medium": Class-Incremental MNIST Setting, useful for quick debugging:
-    setting = ClassIncrementalSetting(
-        dataset="mnist",
-        nb_tasks=5,
-        monitor_training_performance=True,
-        known_task_boundaries_at_test_time=False,
-        batch_size=32,
-        num_workers=4,
-    )
-
-    # - "HARD": Class-Incremental Synbols, more challenging.
-    # NOTE: This Setting is very similar to the one used for the SL track of the
-    # competition.
     # setting = ClassIncrementalSetting(
-    #     dataset="synbols",
-    #     nb_tasks=12,
-    #     known_task_boundaries_at_test_time=False,
+    #     dataset="mnist",
+    #     nb_tasks=5,
     #     monitor_training_performance=True,
+    #     known_task_boundaries_at_test_time=False,
     #     batch_size=32,
     #     num_workers=4,
     # )
 
-    results = setting.apply(method, config=Config(debug=True, data_dir="./data"))
+    # - "HARD": Class-Incremental Synbols, more challenging.
+    # NOTE: This Setting is very similar to the one used for the SL track of the
+    # competition.
+    setting = ClassIncrementalSetting(
+        dataset="synbols",
+        nb_tasks=12,
+        known_task_boundaries_at_test_time=False,
+        monitor_training_performance=True,
+        batch_size=32,
+        num_workers=4,
+    )
+    results = setting.apply(method)
     print(results.summary())

@@ -14,15 +14,12 @@ $ python submission/examples/vanilla_classifier.py
 ## Using this Model/Method for the competition:
 
 1. Follow the installation installation instructions, including the docker setup.
-
 2. Modify `get_method_SL()` in `submission/submission.py`, so that it returns an
    instance of `ExampleTaskInferenceMethod`, rather than `DummyMethod`.
-
 3.1: Running the SL track locally:
     ```console
     make sl
     ```
-    
 3.2: Making a real submission to the Challenge:
     ```console
     make upload-sl
@@ -343,18 +340,40 @@ if __name__ == "__main__":
         TaskIncrementalSetting,
     )
 
-    # Simpler Settings (useful for debugging):
-    # setting = TaskIncrementalSetting(  
-    setting = ClassIncrementalSetting(
-        dataset="mnist", nb_tasks=5, monitor_training_performance=True,
-        batch_size=32, num_workers=4,
-    )
+    from simple_parsing import ArgumentParser
 
-    # Very similar setup to the SL Track of the competition:
+    # - From the command-line:
+
+    ## Create the Method, either manually:
+    # method = ExampleTaskInferenceMethod()
+    # Or, from the command-line:
+    from simple_parsing import ArgumentParser
+
+    parser = ArgumentParser(description=__doc__)
+    ExampleTaskInferenceMethod.add_argparse_args(parser)
+    args = parser.parse_args()
+    method = ExampleTaskInferenceMethod.from_argparse_args(args)
+
+    ## Create the Setting:
+
+    # Simpler Settings (useful for debugging):
+    # setting = TaskIncrementalSetting(
     # setting = ClassIncrementalSetting(
-    #     dataset="synbols", nb_tasks=12, monitor_training_performance=True,
-    #     batch_size=32, num_workers=4,
+    #     dataset="mnist",
+    #     nb_tasks=5,
+    #     monitor_training_performance=True,
+    #     batch_size=32,
+    #     num_workers=4,
     # )
 
-    method = ExampleTaskInferenceMethod()
+    # Very similar setup to the SL Track of the competition:
+    setting = ClassIncrementalSetting(
+        dataset="synbols",
+        nb_tasks=12,
+        monitor_training_performance=True,
+        known_task_boundaries_at_test_time=False,
+        batch_size=32,
+        num_workers=4,
+    )
     results = setting.apply(method)
+
