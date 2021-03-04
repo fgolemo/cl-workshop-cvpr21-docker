@@ -18,13 +18,12 @@ Join the community on the [ContinualAI slack](https://join.slack.com/t/continual
 
 ## Setup
 
-1. Get your API Authentication token from [you profile on the EvalAI Website](https://eval.ai/web/profile),
-   and copy it into the `evalai_token.txt` file.
+1. Get your API Authentication token from [you profile on the EvalAI Website](https://eval.ai/web/profile).
 
-2. From the root directory of the repository, run the `./install.sh` script and activate the `clcomp21` environment.
+2. From the root directory of the repository, run the following commands:
 
 ```console
-./install.sh
+./install.sh <EVALAI_TOKEN>
 conda activate clcomp21
 ```
 
