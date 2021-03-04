@@ -1,4 +1,36 @@
+""" Example Method for the SL track: Multi-Head Classifier with simple task inference.
+
+You can use this model / method as a jumping off point for your own submission.
+
+
+## Quick debugging (without docker)
+
+To debug this method on Settings from Sequoia (including those used for the SL track of
+the competition), run this file:
+```console
+$ python submission/examples/vanilla_classifier.py
+```
+
+## Using this Model/Method for the competition:
+
+1. Follow the installation installation instructions, including the docker setup.
+
+2. Modify `get_method_SL()` in `submission/submission.py`, so that it returns an
+   instance of `ExampleTaskInferenceMethod`, rather than `DummyMethod`.
+
+3.1: Running the SL track locally:
+    ```console
+    make sl
+    ```
+    
+3.2: Making a real submission to the Challenge:
+    ```console
+    make upload-sl
+    ```
+"""
+
 from typing import Tuple, Optional
+from dataclasses import replace
 
 import gym
 import numpy as np
@@ -37,16 +69,16 @@ class MultiHeadClassifier(Classifier):
         # NOTE: The optimizer will be set here, so that we can add the parameters of any
         # new output heads to it later.
         self.optimizer: Optional[torch.optim.Optimizer] = None
+        self.current_task_id: int = 0
 
     def create_output_head(self) -> nn.Module:
-        return nn.Linear(self.representations_size, self.n_classes).to(
-            self.device
-        )
+        return nn.Linear(self.representations_size, self.n_classes).to(self.device)
 
     def get_or_create_output_head(self, task_id: int) -> nn.Module:
         """ Retrieves or creates a new output head for the given task index.
         
-        Also adds its params to the optimizer.
+        Also stores it in the `output_heads`, and adds its parameters to the
+        optimizer.
         """
         task_output_head: nn.Module
         if len(self.output_heads) > task_id:
@@ -60,130 +92,211 @@ class MultiHeadClassifier(Classifier):
         return task_output_head
 
     def forward(self, observations: Observations) -> Tensor:
-        observations = observations.to(self.device)
+        """Smart forward pass with multi-head predictions and task inference.
+        
+        This forward pass can handle three different scenarios, depending on the
+        contents of `observations.task_labels`:
+        1.  Base case: task labels are present, and all examples are from the same task.
+            - Perform the 'usual' forward pass (e.g. `super().forward(observations)`).
+        2.  Task labels are present, and the batch contains a mix of samples from
+            different tasks:
+            - Create slices of the batch for each task, where all items in each
+              'sub-batch' come from the same task.
+            - Perform a forward pass for each task, by calling `forward` recursively
+              with the sub-batch for each task as an argument (Case 1).
+        3.  Task labels are *not* present. Perform some type of task inference, using
+            the `task_inference_forward_pass` method. Check its docstring for more info.
+        
+        Parameters
+        ----------
+        observations : Observations
+            Observations from an environment. As of right now, all Settings produce
+            observations with (at least) the two following attributes:
+            - x: Tensor (the images/inputs)
+            - task_labels: Optional[Tensor] (The task labels, when available, else None)
 
+        Returns
+        -------
+        Tensor
+            The outputs, which in this case are the classification logits.
+            All three cases above produce the same kind of outputs.
+        """
+        observations = observations.to(self.device)
+        task_ids: Optional[Tensor] = observations.task_labels
+
+        if task_ids is None:
+            # Run the forward pass with task inference turned on.
+            return self.task_inference_forward_pass(observations)
+
+        task_ids_present_in_batch = torch.unique(task_ids)
+        if len(task_ids_present_in_batch) > 1:
+            # Case 2: The batch contains data from more than one task.
+            return self.split_forward_pass(observations)
+
+        # Base case: "Normal" forward pass, where all items come from the same task.
+        # - Setup the model for this task, however you want, and then do a forward pass,
+        # as you normally would.
+        # NOTE: If you want to reuse this cool multi-headed forward pass in your
+        # own model, these lines here are what you'd want to change.
+        task_id: int = task_ids_present_in_batch.item()
+
+        # <--------------- Change below ---------------->
+        features = self.encoder(observations.x)
+        self.output = self.get_or_create_output_head(task_id)
+        logits = self.output(features)
+        return logits
+
+    def split_forward_pass(self, observations: Observations) -> Tensor:
+        # We have task labels.
         x = observations.x
         task_labels: Tensor = observations.task_labels
+        unique_task_ids, inv_indices = torch.unique(task_labels, return_inverse=True)
+        # There might be more than one task in the batch.
+        batch_size = observations.batch_size
+        all_indices = torch.arange(batch_size, dtype=int, device=self.device)
 
-        # NOTE: Uncommenting this can be useful when debugging the task inference below:
-        # if len(self.output_heads) > 2 and not self.training:
-        #     secret = task_labels
-        #     task_labels = None
+        # Placeholder for the predicitons for each item in the batch.
+        task_outputs = [None for _ in range(batch_size)]
 
-        if task_labels is not None:
-            # We have task labels.
-            # NOTE: The batch might contain data from more than one task.
-            unique_task_ids, inverse_indices = torch.unique(
-                task_labels, return_inverse=True
-            )
-            unique_task_ids = unique_task_ids.tolist()
+        for i, task_id in enumerate(unique_task_ids):
+            # Get the forward pass slice for this task.
+            # Boolean 'mask' tensor, that selects entries from task `task_id`.
+            is_from_this_task = inv_indices == i
+            # Indices of the batch elements that are from task `task_id`.
+            task_indices = all_indices[is_from_this_task]
 
-            if len(unique_task_ids) == 1:
-                # All items come from the same task:
-                task_id = unique_task_ids[0]
-                # Switch the output head, and then do prediction as usual:
-                self.output = self.get_or_create_output_head(task_id)
-                return super().forward(observations)
+            # Take a slice of the observations, in which all items come from this task.
+            task_observations = observations[is_from_this_task]
+            # Perform a "normal" forward pass (Base case).
+            task_output = self.forward(task_observations)
 
-            batch_size = len(task_labels)
-            all_indices = torch.arange(batch_size, dtype=int, device=self.device)
+            # Store the outputs for the items from this task.
+            for i, index in enumerate(task_indices):
+                task_outputs[index] = task_output[i]
 
-            # Placeholder for the predicitons for each item in the batch.
-            task_features = [None for _ in range(batch_size)]
-            task_outputs = [None for _ in range(batch_size)]
-
-            shared_features = self.encoder(x)
-
-            for i, task_id in enumerate(unique_task_ids):
-                ## Get the forward pass slice for this task.
-
-                task_mask = inverse_indices == i
-                # Indices of the batch elements that are from task `task_id`.
-                task_indices = all_indices[task_mask]
-                task_x = x[task_mask]
-
-                # NOTE: In this example the encoder is shared across all tasks, but
-                # you could also do a different encoding for each task.
-                # task_encoder = self.encoders[task_id]
-
-                ## Get the classifier for this task.
-                task_output_head = self.get_or_create_output_head(task_id)
-
-                # Here we reuse the shared features:
-                # task_h_x = task_encoder(task_x)
-                task_h_x = shared_features[task_mask]
-                # Get the predictions:
-                task_logits = task_output_head(task_h_x)
-
-                # Store the outputs before they are stacked later.
-                for i, index in enumerate(task_indices):
-                    # task_features[index] = task_h_x[i]
-                    task_outputs[index] = task_logits[i]
-
-            ## 'Merge' the results.
-            assert all(item is not None for item in task_outputs)
-            logits = torch.stack(task_outputs)
-
-            # NOTE: We could also merge the hidden vectors from each task:
-            # assert all(item is not None for item in task_features)
-            # features = torch.stack(task_features)
-
-            return logits
-        else:
-            # We don't have access to task labels (`task_labels` is None).
-            # --> Perform a simple kind of task inference:
-            # 1. Perform a forward pass with each task's output head;
-            # 2. Merge these predictions into a single prediction somehow.
-
-            # NOTE: This assumes that the observations are batched.
-            batch_size = x.shape[0]
-            all_indices = torch.arange(batch_size, dtype=int, device=self.device)
-            # NOTE: In this example the encoder is shared across all tasks, but
-            # you could also do a different encoding for each task.
-            shared_features = self.encoder(x)
-
-            n_known_tasks = len(self.output_heads)
-            # Tasks encountered previously and for which we have an output head.
-            known_task_ids: list[int] = list(range(n_known_tasks))
-            assert known_task_ids
-            # Placeholder for the predictions from each output head for each item in the
-            # batch
-            task_features = [None for _ in known_task_ids]
-            task_outputs = [None for _ in known_task_ids]
-
-            for task_id in known_task_ids:
-                ## Get the forward pass for this task.
-                task_x = x
-                ## Get the classifier for this task.
-                task_output_head = self.get_or_create_output_head(task_id)
-                # task_encoder = self.encoders[task_id]
-
-                # task_h_x = task_encoder(task_x)
-                task_h_x = shared_features
-
-                task_logits = task_output_head(task_h_x)
-
-                # task_features[task_id] = task_h_x
-                task_outputs[task_id] = task_logits
-
-            ## 'Merge' the results.
-            assert all(item is not None for item in task_outputs)
-            # Stack the predictions
-            logits_from_each_output_head = torch.stack(
-                task_outputs, dim=-1
-            )  # [B, N, T]
-            
-            # Simple kind of task inference:
-            # For each item in the batch, use the output head that has the highest logit
-            max_logits_across_heads, max_index = logits_from_each_output_head.max(
-                dim=-1
-            )  # [B, N]
-            logits = max_logits_across_heads
-            return logits
-            # y_pred = max_logits_across_heads.argmax(-1)
-            # task_inference_acc = (secret == y_pred).int().sum().float() / batch_size
-            # assert False, (y_pred, secret, task_inference_acc)
+        ## 'Merge' the results.
+        assert all(item is not None for item in task_outputs)
+        logits = torch.stack(task_outputs)
         return logits
+
+    def task_inference_forward_pass(self, observations: Observations) -> Tensor:
+        """ Forward pass with task inference.
+        """
+        # We don't have access to task labels (`task_labels` is None).
+        # --> Perform a simple kind of task inference:
+        # 1. Perform a forward pass with each task's output head;
+        # 2. Merge these predictions into a single prediction somehow.
+        assert observations.task_labels is None
+        x = observations.x
+        # NOTE: This assumes that the observations are batched.
+
+        # These are used below to indicate the shape of the different tensors.
+        B = batch_size = x.shape[0]
+        T = n_known_tasks = len(self.output_heads)
+        N = self.n_classes
+
+        all_indices = torch.arange(batch_size, dtype=int, device=self.device)
+        # NOTE: In this example the encoder is shared across all tasks, but
+        # you could also do a different encoding for each task.
+        # shared_features = self.encoder(x)
+
+        # Tasks encountered previously and for which we have an output head.
+        known_task_ids: list[int] = list(range(n_known_tasks))
+        assert known_task_ids
+        # Placeholder for the predictions from each output head for each item in the
+        # batch
+        task_outputs = [None for _ in known_task_ids]  # [T, B, N]
+
+        # Get the forward pass for each task.
+        for task_id in known_task_ids:
+            # Create 'fake' Observations for this forward pass, with 'fake' task labels.
+            # NOTE: We do this so we can call `self.forward` and not get an infinite
+            # recursion.
+            task_labels = torch.full([B], task_id, device=self.device, dtype=int)
+            task_observations = replace(observations, task_labels=task_labels)
+
+            # Setup the model for task `task_id`, and then do a forward pass.
+            task_logits = self.forward(task_observations)
+
+            task_outputs[task_id] = task_logits
+
+        # 'Merge' the predictions from each output head using some kind of task
+        # inference.
+        assert all(item is not None for item in task_outputs)
+        # Stack the predictions (logits) from each output head.
+        logits_from_each_head: Tensor = torch.stack(task_outputs, dim=1)
+        assert logits_from_each_head.shape == (B, T, N)
+
+        # Normalize the logits from each output head with softmax.
+        # Example with batch size of 1, output heads = 2, and classes = 4:
+        # logits from each head:  [[[123, 456, 123, 123], [1, 1, 2, 1]]]
+        # 'probs' from each head: [[[0.1, 0.6, 0.1, 0.1], [0.2, 0.2, 0.4, 0.2]]]
+        probs_from_each_head = torch.softmax(logits_from_each_head, dim=-1)
+        assert probs_from_each_head.shape == (B, T, N)
+
+        # Simple kind of task inference:
+        # For each item in the batch, use the class that has the highest probability
+        # accross all output heads.
+        max_probs_across_heads, chosen_head_per_class = probs_from_each_head.max(dim=1)
+        assert max_probs_across_heads.shape == (B, N)
+        assert chosen_head_per_class.shape == (B, N)
+        # Example (continued):
+        # max probs across heads:        [[0.2, 0.6, 0.4, 0.2]]
+        # chosen output heads per class: [[1, 0, 1, 1]]
+
+        # Determine which output head has highest "confidence":
+        max_prob_value, most_probable_class = max_probs_across_heads.max(dim=1)
+        assert max_prob_value.shape == (B,)
+        assert most_probable_class.shape == (B,)
+        # Example (continued):
+        # max_prob_value: [0.6]
+        # max_prob_class: [1]
+
+        # A bit of boolean trickery to get what we need, which is, for each item, the
+        # index of the output head that gave the most confident prediction.
+        mask = F.one_hot(most_probable_class, N).to(dtype=bool, device=self.device)
+        chosen_output_head_per_item = chosen_head_per_class[mask]
+        assert mask.shape == (B, N)
+        assert chosen_output_head_per_item.shape == (B,)
+        # Example (continued):
+        # mask: [[False, True, False, True]]
+        # chosen_output_head_per_item: [0]
+
+        # Create a bool tensor to select items associated with the chosen output head.
+        selected_mask = F.one_hot(chosen_output_head_per_item, T).to(
+            dtype=bool, device=self.device
+        )
+        assert selected_mask.shape == (B, T)
+        # Select the logits using the mask:
+        logits = logits_from_each_head[selected_mask]
+        assert logits.shape == (B, N)
+        return logits
+
+    @contextmanager
+    def temporarily_in_task(self, task_id: int) -> None:
+        if task_id == self.current_task_id:
+            # Already in this task.
+            yield
+            return
+
+        assert isinstance(task_id, int)
+        # Save the previous state.
+        previous_task_id = self.current_task_id
+        previous_output_head = self.output
+        # previous_encoder = self.encoder
+
+        # Set the new, temporary state.
+        self.current_task_id = task_id
+        self.output = self.get_or_create_output_head(task_id)
+        # Could also change the encoder if you wanted to:
+        # self.encoder = self.encoders[task_id]
+
+        yield
+
+        # Restore the previous state.
+        self.current_task_id = previous_task_id
+        self.output = previous_output_head
+        # self.encoder = previous_encoder
 
     def on_task_switch(self, task_id: Optional[int]):
         """ Executed when the task switches (to either a known or unknown task).
@@ -191,6 +304,7 @@ class MultiHeadClassifier(Classifier):
         if task_id is not None:
             # Switch the output head.
             self.output = self.get_or_create_output_head(task_id)
+
 
 class ExampleTaskInferenceMethod(ExampleMethod):
     def __init__(self, hparams=None):
@@ -220,23 +334,27 @@ class ExampleTaskInferenceMethod(ExampleMethod):
         self.model.on_task_switch(task_id)
 
     def get_actions(self, observations, action_space):
-        # FIXME: Debugging the task inference mechanism.
-        # if self.testing and len(self.model.output_heads) == 5:
-        #     actions = super().get_actions(observations, action_space)
-        #     assert False, (actions, self.model._bobo)
         return super().get_actions(observations, action_space)
-        
-if __name__ == "__main__":
-    from sequoia.settings.passive.cl import MultiTaskSetting, ClassIncrementalSetting
 
-    # Multi-Task setting, used to give us the Upper bound performance of class-incremental algorithms.
-    # setting = MultiTaskSetting(
+
+if __name__ == "__main__":
+    from sequoia.settings.passive.cl import (
+        ClassIncrementalSetting,
+        TaskIncrementalSetting,
+    )
+
+    # Simpler Settings (useful for debugging):
+    # setting = TaskIncrementalSetting(  
     setting = ClassIncrementalSetting(
         dataset="mnist", nb_tasks=5, monitor_training_performance=True,
+        batch_size=32, num_workers=4,
     )
+
+    # Very similar setup to the SL Track of the competition:
+    # setting = ClassIncrementalSetting(
+    #     dataset="synbols", nb_tasks=12, monitor_training_performance=True,
+    #     batch_size=32, num_workers=4,
+    # )
+
     method = ExampleTaskInferenceMethod()
     results = setting.apply(method)
-
-    method = ExampleTaskInferenceMethod()
-
-    # method.configure()

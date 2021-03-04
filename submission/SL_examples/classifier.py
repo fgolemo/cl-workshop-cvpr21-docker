@@ -104,7 +104,7 @@ class Classifier(nn.Module):
             features = 256
         elif image_space.width == image_space.height == 224:
             # Synbols dataset: use a resnet18 by default.
-            resnet: ResNet = resnet18(pretrained=True)
+            resnet: ResNet = resnet18(pretrained=False)
             features = resnet.fc.in_features
             # Disable/Remove the last layer.
             resnet.fc = nn.Sequential()
@@ -187,12 +187,16 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
         learning_rate: float = log_uniform(1e-6, 1e-2, default=0.001)
         # L2 regularization coefficient.
         weight_decay: float = log_uniform(1e-9, 1e-3, default=1e-6)
+        
+        # Maximum number of training epochs per task.
+        max_epochs_per_task: int = 1
+        # Number of epochs with increasing validation loss after which we stop training.
+        early_stop_patience: int = 2
+
 
     def __init__(self, hparams: HParams = None):
         self.hparams: ExampleMethod.HParams = hparams or self.HParams()
-        self.max_epochs: int = 1
-        self.early_stop_patience: int = 2
-
+        
         # We will create those when `configure` will be called, before training.
         self.model: Classifier
         self.optimizer: torch.optim.Optimizer
@@ -224,7 +228,7 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
         # configure() will have been called by the setting before we get here.
         best_val_loss = inf
         best_epoch = 0
-        for epoch in range(self.max_epochs):
+        for epoch in range(self.hparams.max_epochs_per_task):
             self.model.train()
             print(f"Starting epoch {epoch}")
             # Training loop:
@@ -261,8 +265,10 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
             if epoch_val_loss < best_val_loss:
                 best_val_loss = valid_env
                 best_epoch = i
-            if i - best_epoch > self.early_stop_patience:
+            if i - best_epoch > self.hparams.early_stop_patience:
                 print(f"Early stopping at epoch {i}.")
+                # NOTE: You should probably reload the model weights as they were at the
+                # best epoch.
 
     def get_actions(
         self, observations: Observations, action_space: gym.Space
@@ -322,6 +328,8 @@ if __name__ == "__main__":
         nb_tasks=5,
         monitor_training_performance=True,
         known_task_boundaries_at_test_time=False,
+        batch_size=32,
+        num_workers=4,
     )
 
     # - "HARD": Class-Incremental Synbols, more challenging.
@@ -332,6 +340,8 @@ if __name__ == "__main__":
     #     nb_tasks=12,
     #     known_task_boundaries_at_test_time=False,
     #     monitor_training_performance=True,
+    #     batch_size=32,
+    #     num_workers=4,
     # )
 
     results = setting.apply(method, config=Config(debug=True, data_dir="./data"))
