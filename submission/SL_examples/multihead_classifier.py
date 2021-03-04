@@ -177,7 +177,7 @@ class MultiHeadClassifier(Classifier):
         return logits
 
     def task_inference_forward_pass(self, observations: Observations) -> Tensor:
-        """ Forward pass with task inference.
+        """ Forward pass with a simple form of task inference.
         """
         # We don't have access to task labels (`task_labels` is None).
         # --> Perform a simple kind of task inference:
@@ -269,37 +269,12 @@ class MultiHeadClassifier(Classifier):
         assert logits.shape == (B, N)
         return logits
 
-    @contextmanager
-    def temporarily_in_task(self, task_id: int) -> None:
-        if task_id == self.current_task_id:
-            # Already in this task.
-            yield
-            return
-
-        assert isinstance(task_id, int)
-        # Save the previous state.
-        previous_task_id = self.current_task_id
-        previous_output_head = self.output
-        # previous_encoder = self.encoder
-
-        # Set the new, temporary state.
-        self.current_task_id = task_id
-        self.output = self.get_or_create_output_head(task_id)
-        # Could also change the encoder if you wanted to:
-        # self.encoder = self.encoders[task_id]
-
-        yield
-
-        # Restore the previous state.
-        self.current_task_id = previous_task_id
-        self.output = previous_output_head
-        # self.encoder = previous_encoder
-
     def on_task_switch(self, task_id: Optional[int]):
         """ Executed when the task switches (to either a known or unknown task).
         """
         if task_id is not None:
             # Switch the output head.
+            self.current_task_id = task_id
             self.output = self.get_or_create_output_head(task_id)
 
 
