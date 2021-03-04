@@ -1,7 +1,3 @@
-# run with `make install EVALAI_TOKEN=...`
-install:
-	./install.sh
-
 sl:
 	echo "=== RUNNING SL TRACK"
 	python main.py --mode sl # this will take a bit
@@ -39,4 +35,8 @@ upload-rl:
 
 upload-both:
 	echo "TODO"
+
+update:
+	./update.sh
+
 
