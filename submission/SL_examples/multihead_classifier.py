@@ -138,12 +138,37 @@ class MultiHeadClassifier(Classifier):
         task_id: int = task_ids_present_in_batch.item()
 
         # <--------------- Change below ---------------->
+        if task_id == self.current_task_id:
+            output_head = self.output
+        else:
+            output_head = self.get_or_create_output_head(task_id)
         features = self.encoder(observations.x)
-        self.output = self.get_or_create_output_head(task_id)
-        logits = self.output(features)
+        logits = output_head(features)
         return logits
 
     def split_forward_pass(self, observations: Observations) -> Tensor:
+        """Perform a forward pass for a batch of observations from different tasks.
+        
+        This is called in `forward` when there is more than one unique task label in the
+        batch. 
+        This will call `forward` for each task id present in the batch, passing it a
+        slice of the batch, in which all items are from that task.
+        
+        NOTE: This cannot cause recursion problems, because `forward`(d=2) will be
+        called with a bach of items, all of which come from the same task. This makes it
+        so `split_forward_pass` cannot then be called again. 
+
+        Parameters
+        ----------
+        observations : Observations
+            Observations, in which the task labels might not all be the same.
+
+        Returns
+        -------
+        Tensor
+            The outputs/logits from each task, re-assembled into a single batch, with
+            the task ordering from `observations` preserved.
+        """
         # We have task labels.
         x = observations.x
         task_labels: Tensor = observations.task_labels
