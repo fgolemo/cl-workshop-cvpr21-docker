@@ -1,11 +1,30 @@
 """ Example Method for the SL track: Uses a simple classifier, without any CL mechanism.
 
 As you'd expect, this Method exhibits complete forgetting of all previous tasks.
+You can use this model and method as a jumping off point for your own submission.
 
-To debug this method on one the Settings defined at the bottom of this file:
+
+## Quick debugging (without docker)
+
+To debug this method on Settings from Sequoia (including those used for the SL track of
+the competition), run this file:
 ```console
-$ python submission/examples/vanilla_classifier.py
+$ python submission/SL_examples/classifier.py
 ```
+
+## Using this Model/Method in a submission:
+
+1. Follow the installation installation instructions, including the docker setup.
+2. Modify `get_method_SL()` in `submission/submission.py`, so that it returns an
+   instance of `ExampleMethod`, rather than `DummyMethod`.
+3.1: Running the SL track locally:
+    ```console
+    make sl
+    ```
+3.2: Making a real submission to the Challenge:
+    ```console
+    make upload-sl
+    ```
 """
 import sys
 from collections import defaultdict

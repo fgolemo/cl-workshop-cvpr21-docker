@@ -1,6 +1,6 @@
 """ Example Method for the SL track: Multi-Head Classifier with simple task inference.
 
-You can use this model / method as a jumping off point for your own submission.
+You can use this model and method as a jumping off point for your own submission.
 
 
 ## Quick debugging (without docker)
@@ -8,10 +8,10 @@ You can use this model / method as a jumping off point for your own submission.
 To debug this method on Settings from Sequoia (including those used for the SL track of
 the competition), run this file:
 ```console
-$ python submission/examples/vanilla_classifier.py
+$ python submission/SL_examples/vanilla_classifier.py
 ```
 
-## Using this Model/Method for the competition:
+## Using this Model/Method in a submission:
 
 1. Follow the installation installation instructions, including the docker setup.
 2. Modify `get_method_SL()` in `submission/submission.py`, so that it returns an

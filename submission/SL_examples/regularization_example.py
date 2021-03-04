@@ -4,10 +4,28 @@
 adding an EWC-like loss to prevent the weights from changing too much between tasks.
 
 
-To run this example on one the Settings defined below:
+
+## Quick debugging (without docker)
+
+To debug this method on Settings from Sequoia (including those used for the SL track of
+the competition), run this file:
 ```console
-$ python submission/example_reg_method.py
+$ python submission/SL_examples/regularization_example.py
 ```
+
+## Using this Model/Method in a submission:
+
+1. Follow the installation installation instructions, including the docker setup.
+2. Modify `get_method_SL()` in `submission/submission.py`, so that it returns an
+   instance of `ExampleRegMethod`, rather than `DummyMethod`.
+3.1: Running the SL track locally:
+    ```console
+    make sl
+    ```
+3.2: Making a real submission to the Challenge:
+    ```console
+    make upload-sl
+    ```
 """
 import sys
 from copy import deepcopy

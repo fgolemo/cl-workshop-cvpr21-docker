@@ -1,2 +1,3 @@
 from .classifier import ExampleMethod
 from .regularization_example import ExampleRegMethod
+from .multihead_classifier import ExampleTaskInferenceMethod
