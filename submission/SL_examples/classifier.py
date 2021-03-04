@@ -26,29 +26,23 @@ $ python submission/SL_examples/classifier.py
     make upload-sl
     ```
 """
-import sys
-from collections import defaultdict
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Dict, Optional, Tuple
 
 import gym
-import pandas as pd
 import torch
 import tqdm
 from gym import spaces
 from numpy import inf
-from sequoia import Method, Setting
 from sequoia.common.hparams import HyperParameters, log_uniform
 from sequoia.common.spaces import Image
 from sequoia.methods import Method
 from sequoia.settings import ClassIncrementalSetting
+from sequoia.settings.passive import PassiveEnvironment
 from sequoia.settings.passive.cl.objects import (
     Actions,
     Environment,
     Observations,
-    PassiveEnvironment,
-    Results,
     Rewards,
 )
 from simple_parsing import ArgumentParser
@@ -70,7 +64,7 @@ class Classifier(nn.Module):
     ):
         super().__init__()
         image_space: Image = observation_space.x
-        image_shape = observation_space[0].shape
+        # image_shape = image_space.shape
 
         # This example is intended for classification / discrete action spaces.
         assert isinstance(action_space, spaces.Discrete)
@@ -87,7 +81,7 @@ class Classifier(nn.Module):
 
     def create_encoder(self, image_space: Image) -> Tuple[nn.Module, int]:
         """Create an encoder for the given image space.
-        
+
         Returns the encoder, as well as the size of the representations it will produce.
 
         Parameters
@@ -147,17 +141,17 @@ class Classifier(nn.Module):
         self, batch: Tuple[Observations, Optional[Rewards]], environment: Environment
     ) -> Tuple[Tensor, Dict]:
         """Shared step used for both training and validation.
-                
+
         Parameters
         ----------
         batch : Tuple[Observations, Optional[Rewards]]
             Batch containing Observations, and optional Rewards. When the Rewards are
             None, it means that we'll need to provide the Environment with actions
             before we can get the Rewards (e.g. image labels) back.
-            
+
             This happens for example when being applied in a Setting which cares about
             sample efficiency or training performance, for example.
-            
+
         environment : Environment
             The environment we're currently interacting with. Used to provide the
             rewards when they aren't already part of the batch (as mentioned above).
@@ -181,7 +175,7 @@ class Classifier(nn.Module):
             # If the rewards in the batch is None, it means we're expected to give
             # actions before we can get rewards back from the environment.
             rewards = environment.send(Actions(y_pred))
-        
+
         assert rewards is not None
         image_labels = rewards.y.to(self.device)
 
@@ -194,7 +188,7 @@ class Classifier(nn.Module):
 
 class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
     """ Minimal example of a Method usable only in the SL track of the competition.
-    
+
     This method uses the ExampleModel, which is quite simple.
     """
 
@@ -206,22 +200,21 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
         learning_rate: float = log_uniform(1e-6, 1e-2, default=0.001)
         # L2 regularization coefficient.
         weight_decay: float = log_uniform(1e-9, 1e-3, default=1e-6)
-        
+
         # Maximum number of training epochs per task.
         max_epochs_per_task: int = 10
         # Number of epochs with increasing validation loss after which we stop training.
         early_stop_patience: int = 2
 
-
     def __init__(self, hparams: HParams = None):
         self.hparams: ExampleMethod.HParams = hparams or self.HParams()
-        
+
         # We will create those when `configure` will be called, before training.
         self.model: Classifier
         self.optimizer: torch.optim.Optimizer
 
     def configure(self, setting: ClassIncrementalSetting):
-        """ Called before the method is applied on a setting (before training). 
+        """ Called before the method is applied on a setting (before training).
 
         You can use this to instantiate your model, for instance, since this is
         where you get access to the observation & action spaces.
@@ -313,13 +306,9 @@ class ExampleMethod(Method, target_setting=ClassIncrementalSetting):
 
 if __name__ == "__main__":
     from sequoia.common import Config
-    from sequoia.settings import (
-        ClassIncrementalSetting,
-        DomainIncrementalSetting,
-        TaskIncrementalSetting,
-    )
+    from sequoia.settings import ClassIncrementalSetting
 
-    ## Create the Method:
+    # Create the Method:
 
     # - Manually:
     # method = ExampleMethod()
@@ -332,11 +321,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     method = ExampleMethod.from_argparse_args(args)
 
-    ## Create the Setting:
+    # Create the Setting:
 
     # - "Easy": Domain-Incremental MNIST Setting, useful for quick debugging, but
     #           beware that the action space is different than in class-incremental!
     #           (which is the type of Setting used in the SL track!)
+    # from sequoia.settings.passive.cl.domain_incremental import DomainIncrementalSetting
     # setting = DomainIncrementalSetting(
     #     dataset="mnist", nb_tasks=5, monitor_training_performance=True
     # )
@@ -362,5 +352,7 @@ if __name__ == "__main__":
         batch_size=32,
         num_workers=4,
     )
-    results = setting.apply(method)
+    # NOTE: can also use pass a `Config` object to `setting.apply`. This object has some
+    # configuration options like device, data_dir, etc.
+    results = setting.apply(method, config=Config(data_dir="data"))
     print(results.summary())

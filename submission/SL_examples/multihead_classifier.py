@@ -26,22 +26,13 @@ $ python submission/SL_examples/vanilla_classifier.py
     ```
 """
 
-from typing import Tuple, Optional
+from typing import Optional
 from dataclasses import replace
 
-import gym
-import numpy as np
 import torch
-from contextlib import contextmanager
 from gym import Space, spaces
 from sequoia.settings.passive.cl import ClassIncrementalSetting
-from sequoia.settings.passive.cl.objects import (
-    Actions,
-    Environment,
-    Observations,
-    Rewards,
-)
-from sequoia.common.spaces import Sparse
+from sequoia.settings.passive.cl.objects import Observations
 from torch import Tensor, nn
 from torch.nn import functional as F
 from submission.SL_examples.classifier import Classifier, ExampleMethod
@@ -73,7 +64,7 @@ class MultiHeadClassifier(Classifier):
 
     def get_or_create_output_head(self, task_id: int) -> nn.Module:
         """ Retrieves or creates a new output head for the given task index.
-        
+
         Also stores it in the `output_heads`, and adds its parameters to the
         optimizer.
         """
@@ -90,7 +81,7 @@ class MultiHeadClassifier(Classifier):
 
     def forward(self, observations: Observations) -> Tensor:
         """Smart forward pass with multi-head predictions and task inference.
-        
+
         This forward pass can handle three different scenarios, depending on the
         contents of `observations.task_labels`:
         1.  Base case: task labels are present, and all examples are from the same task.
@@ -103,7 +94,7 @@ class MultiHeadClassifier(Classifier):
               with the sub-batch for each task as an argument (Case 1).
         3.  Task labels are *not* present. Perform some type of task inference, using
             the `task_inference_forward_pass` method. Check its docstring for more info.
-        
+
         Parameters
         ----------
         observations : Observations
@@ -148,15 +139,15 @@ class MultiHeadClassifier(Classifier):
 
     def split_forward_pass(self, observations: Observations) -> Tensor:
         """Perform a forward pass for a batch of observations from different tasks.
-        
+
         This is called in `forward` when there is more than one unique task label in the
-        batch. 
+        batch.
         This will call `forward` for each task id present in the batch, passing it a
         slice of the batch, in which all items are from that task.
-        
+
         NOTE: This cannot cause recursion problems, because `forward`(d=2) will be
         called with a bach of items, all of which come from the same task. This makes it
-        so `split_forward_pass` cannot then be called again. 
+        so `split_forward_pass` cannot then be called again.
 
         Parameters
         ----------
@@ -169,8 +160,8 @@ class MultiHeadClassifier(Classifier):
             The outputs/logits from each task, re-assembled into a single batch, with
             the task ordering from `observations` preserved.
         """
+        assert observations.task_labels is not None
         # We have task labels.
-        x = observations.x
         task_labels: Tensor = observations.task_labels
         unique_task_ids, inv_indices = torch.unique(task_labels, return_inverse=True)
         # There might be more than one task in the batch.
@@ -196,7 +187,7 @@ class MultiHeadClassifier(Classifier):
             for i, index in enumerate(task_indices):
                 task_outputs[index] = task_output[i]
 
-        ## 'Merge' the results.
+        # Merge the results.
         assert all(item is not None for item in task_outputs)
         logits = torch.stack(task_outputs)
         return logits
@@ -209,19 +200,12 @@ class MultiHeadClassifier(Classifier):
         # 1. Perform a forward pass with each task's output head;
         # 2. Merge these predictions into a single prediction somehow.
         assert observations.task_labels is None
-        x = observations.x
-        # NOTE: This assumes that the observations are batched.
 
+        # NOTE: This assumes that the observations are batched.
         # These are used below to indicate the shape of the different tensors.
-        B = batch_size = x.shape[0]
+        B = observations.x.shape[0]
         T = n_known_tasks = len(self.output_heads)
         N = self.n_classes
-
-        all_indices = torch.arange(batch_size, dtype=int, device=self.device)
-        # NOTE: In this example the encoder is shared across all tasks, but
-        # you could also do a different encoding for each task.
-        # shared_features = self.encoder(x)
-
         # Tasks encountered previously and for which we have an output head.
         known_task_ids: list[int] = list(range(n_known_tasks))
         assert known_task_ids
@@ -308,7 +292,7 @@ class ExampleTaskInferenceMethod(ExampleMethod):
         super().__init__(hparams=hparams)
 
     def configure(self, setting: ClassIncrementalSetting):
-        """ Called before the method is applied on a setting (before training). 
+        """ Called before the method is applied on a setting (before training).
 
         You can use this to instantiate your model, for instance, since this is
         where you get access to the observation & action spaces.
@@ -340,11 +324,7 @@ if __name__ == "__main__":
         TaskIncrementalSetting,
     )
 
-    from simple_parsing import ArgumentParser
-
-    # - From the command-line:
-
-    ## Create the Method, either manually:
+    # Create the Method, either manually:
     # method = ExampleTaskInferenceMethod()
     # Or, from the command-line:
     from simple_parsing import ArgumentParser
@@ -354,7 +334,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     method = ExampleTaskInferenceMethod.from_argparse_args(args)
 
-    ## Create the Setting:
+    # Create the Setting:
 
     # Simpler Settings (useful for debugging):
     # setting = TaskIncrementalSetting(
@@ -376,4 +356,3 @@ if __name__ == "__main__":
         num_workers=4,
     )
     results = setting.apply(method)
-

@@ -1,5 +1,3 @@
-
-
 """ Example: Defines a new Method based on the ExampleMethod from `simple_classifier.py`
 adding an EWC-like loss to prevent the weights from changing too much between tasks.
 
@@ -27,18 +25,16 @@ $ python submission/SL_examples/regularization_example.py
     make upload-sl
     ```
 """
-import sys
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import ClassVar, Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import gym
 import torch
 from torch import Tensor
 
-sys.path.extend([".", "..", "../.."])  # "Hack": used so we can run python submission/(...).py
 from sequoia.settings import DomainIncrementalSetting
-from sequoia.common.hparams import HyperParameters, uniform
+from sequoia.common.hparams import uniform
 from sequoia.settings.passive.cl.objects import Observations, Rewards
 from sequoia.utils import dict_intersection
 from sequoia.utils.logging_utils import get_logger
@@ -131,6 +127,7 @@ class ExampleRegMethod(ExampleMethod):
         to make it easier to run HPO sweeps for your Method, which isn't required for
         the competition.
         """
+
         # Coefficient of the ewc-like loss.
         reg_coefficient: float = uniform(0.0, 10.0, default=1.0)
         # Distance norm used in the regularization loss.
@@ -159,30 +156,28 @@ class ExampleRegMethod(ExampleMethod):
 
 
 if __name__ == "__main__":
-    from sequoia.settings import (
-        ClassIncrementalSetting,
-        TaskIncrementalSetting,
-        DomainIncrementalSetting,
-    )
+    from sequoia.settings import ClassIncrementalSetting
     from sequoia.common import Config
 
-    ## Create the Method:
+    # Create the Method:
 
     # - Manually:
     # method = ExampleRegMethod()
 
     # - From the command-line:
     from simple_parsing import ArgumentParser
+
     parser = ArgumentParser()
     ExampleRegMethod.add_argparse_args(parser)
     args = parser.parse_args()
     method = ExampleRegMethod.from_argparse_args(args)
 
-    ## Create the Setting:
+    # Create the Setting:
 
     # - "Easy": Domain-Incremental MNIST Setting, useful for quick debugging, but
     #           beware that the action space is different than in class-incremental!
     #           (which is the type of Setting used in the SL track!)
+    # from sequoia.settings.passive.cl.domain_incremental import DomainIncrementalSetting
     # setting = DomainIncrementalSetting(
     #     dataset="mnist", nb_tasks=5, monitor_training_performance=True
     # )
@@ -193,18 +188,22 @@ if __name__ == "__main__":
     #     nb_tasks=5,
     #     monitor_training_performance=True,
     #     known_task_boundaries_at_test_time=False,
+    #     batch_size=32,
+    #     num_workes=4,
     # )
 
     # - "HARD": Class-Incremental Synbols, more challenging.
     # NOTE: This Setting is very similar to the one used for the SL track of the
     # competition.
-    # setting = ClassIncrementalSetting(
-    #     dataset="synbols",
-    #     nb_tasks=12,
-    #     known_task_boundaries_at_test_time=False,
-    #     monitor_training_performance=True,
-    # )
+    setting = ClassIncrementalSetting(
+        dataset="synbols",
+        nb_tasks=12,
+        known_task_boundaries_at_test_time=False,
+        monitor_training_performance=True,
+        batch_size=32,
+        num_workers=4,
+    )
 
-    ## Run the experiment:
+    # Run the experiment:
     results = setting.apply(method, config=Config(debug=True, data_dir="./data"))
     print(results.summary())
