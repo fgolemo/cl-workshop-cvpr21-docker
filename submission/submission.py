@@ -2,11 +2,10 @@
 but the get_method() functions must return the method you're planning to use for each
 track.
 """
-
 from sequoia import Method
 from sequoia.settings import PassiveSetting, ActiveSetting, Setting
 
-from submission.classification_method import ExampleMethod
+from submission.SL_examples import ExampleMethod
 from submission.dummy_method import DummyMethod
 
 
