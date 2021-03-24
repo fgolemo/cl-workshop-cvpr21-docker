@@ -25,6 +25,7 @@ from sequoia.settings.passive.cl.objects import (
 from simple_parsing import ArgumentParser
 from torch import Tensor, nn
 from torchvision.models import ResNet, resnet18
+from torch.optim.optimizer import Optimizer
 
 
 class Classifier(nn.Module):

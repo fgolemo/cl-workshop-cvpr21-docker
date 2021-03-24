@@ -31,7 +31,25 @@ upload-sl:
 	rm -r ./build/ || true
 
 upload-rl:
-	echo "TODO"
+	echo "=== RUNNING DOCKER BUILD AND UPLOAD"
+	# prep copy of this project for container upload
+	rm -r ./build/ || true
+	mkdir build
+
+	cp -r ./*.py ./build
+	cp -r ./*.yaml ./build
+	cp -r ./submission ./build
+
+	rm -rf ./build/data || true
+	rm -rf ./build/scripts || true
+	rm -rf ./build/results || true
+
+	docker build -t clcomp21-submission-rl:v0 .
+	evalai push clcomp21-submission-rl:v0 -p cvpr21-rl-829
+
+	# cleanup
+	rm -r ./build/ || true
+
 
 upload-both:
 	echo "TODO"
