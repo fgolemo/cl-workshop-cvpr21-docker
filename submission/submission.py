@@ -46,6 +46,10 @@ def get_method_rl() -> Method[ActiveSetting]:
     """
     # This is a dummy solution that returns random actions for every observation.
     return DummyMethod()
+    # You could also use some of the available methods from SB3:
+    from sequoia.methods.stable_baselines3_methods import PPOMethod, A2CMethod, DQNMethod
+    from sequoia.methods.stable_baselines3_methods.ppo import PPOMethod, PPOModel
+    return PPOMethod(hparams=PPOModel.HParams(verbose=1))
 
 
 def get_method() -> Method[Setting]:
