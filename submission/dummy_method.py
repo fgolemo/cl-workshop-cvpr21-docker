@@ -58,3 +58,32 @@ class DummyMethod(Method, target_setting=ClassIncrementalSetting):
         y_pred = action_space.sample()
         assert action_space.shape[0] == observations.x.shape[0]
         return self.target_setting.Actions(y_pred)
+
+
+
+
+if __name__ == "__main__":
+    from sequoia.common import Config
+    from sequoia.settings import ClassIncrementalSetting
+
+    # Create the Method:
+
+    # - Manually:
+    method = DummyMethod()
+
+    # NOTE: This Setting is very similar to the one used for the SL track of the
+    # competition.
+    from sequoia.client import SettingProxy
+    setting = SettingProxy(ClassIncrementalSetting, "sl_track.yaml")
+    # setting = SettingProxy(ClassIncrementalSetting,
+    #     dataset="synbols",
+    #     nb_tasks=12,
+    #     known_task_boundaries_at_test_time=False,
+    #     monitor_training_performance=True,
+    #     batch_size=32,
+    #     num_workers=4,
+    # )
+    # NOTE: can also use pass a `Config` object to `setting.apply`. This object has some
+    # configuration options like device, data_dir, etc.
+    results = setting.apply(method, config=Config(data_dir="data"))
+    print(results.summary())
