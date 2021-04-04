@@ -10,7 +10,7 @@ both:
 	echo "=== RUNNING BOTH TRACKS"
 	python main.py --mode both # this will take a bit
 
-upload-sl:
+upload-prep:
 	echo "=== RUNNING DOCKER BUILD AND UPLOAD"
 	# prep copy of this project for container upload
 	rm -r ./build/ || true
@@ -24,35 +24,24 @@ upload-sl:
 	rm -rf ./build/scripts || true
 	rm -rf ./build/results || true
 
-	docker build -t clcomp21-submission-sl:v0 .
+upload-sl: upload-prep
+	docker build --no-cache -t clcomp21-submission-sl:v0 .
 	evalai push clcomp21-submission-sl:v0 -p cvpr21-sl-829
-
 	# cleanup
 	rm -r ./build/ || true
 
-upload-rl:
-	echo "=== RUNNING DOCKER BUILD AND UPLOAD"
-	# prep copy of this project for container upload
-	rm -r ./build/ || true
-	mkdir build
-
-	cp -r ./*.py ./build
-	cp -r ./*.yaml ./build
-	cp -r ./submission ./build
-
-	rm -rf ./build/data || true
-	rm -rf ./build/scripts || true
-	rm -rf ./build/results || true
-
-	docker build -t clcomp21-submission-rl:v0 .
+upload-rl: upload-prep
+	docker build --no-cache -t clcomp21-submission-rl:v0 .
 	evalai push clcomp21-submission-rl:v0 -p cvpr21-rl-829
-
 	# cleanup
 	rm -r ./build/ || true
 
 
-upload-both:
-	echo "TODO"
+upload-both: upload-prep
+	docker build --no-cache -t clcomp21-submission-both:v0 .
+	evalai push clcomp21-submission-both:v0 -p cvpr21-both-829
+	# cleanup
+	rm -r ./build/ || true
 
 update:
 	./update.sh
