@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 echo "=== UPDATING REPO FROM GIT"
 git pull

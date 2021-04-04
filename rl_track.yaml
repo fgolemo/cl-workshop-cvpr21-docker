@@ -1,118 +1,25 @@
-_current_task_id: 0
-add_done_to_observations: true
-batch_size: null
 dataset: monsterkong
-episodes_per_task: null
-known_task_boundaries_at_test_time: true
 known_task_boundaries_at_train_time: true
-max_episode_steps: 500
-max_episodes: null
-max_steps: 100000
-nb_tasks: 12
-num_workers: null
-observe_state_directly: false
-smooth_task_boundaries: false
-steps_per_task: 8333
-task_labels_at_test_time: false
+known_task_boundaries_at_test_time: false
 task_labels_at_train_time: true
-task_noise_std: 0.2
-test_steps: 120000
-test_steps_per_task: 10000
-test_task_schedule:
-  0:
-    level: 0
-  10000:
-    level: 1
-  20000:
-    level: 2
-  30000:
-    level: 3
-  40000:
-    level: 4
-  50000:
-    level: 5
-  60000:
-    level: 6
-  70000:
-    level: 7
-  80000:
-    level: 8
-  90000:
-    level: 9
-  100000:
-    level: 10
-  110000:
-    level: 11
-  120000:
-    level: 12
-test_task_schedule_path: null
-test_transforms:
-- to_tensor
-- three_channels
-test_wrappers: []
+task_labels_at_test_time: false
+monitor_training_performance: true
+steps_per_task: 200_000
+test_steps_per_task: 10_000
 train_task_schedule:
   0:
     level: 0
-  8333:
+  1:
     level: 1
-  16666:
-    level: 2
-  24999:
-    level: 3
-  33332:
-    level: 4
-  41665:
-    level: 5
-  49998:
-    level: 6
-  58331:
-    level: 7
-  66664:
-    level: 8
-  74997:
-    level: 9
-  83330:
+  2:
     level: 10
-  91663:
+  3:
     level: 11
-  99996:
-    level: 12
-train_task_schedule_path: null
-train_transforms:
-- to_tensor
-- three_channels
-train_wrappers: []
-transforms: []
-val_fraction: 0.2
-val_transforms:
-- to_tensor
-- three_channels
-valid_task_schedule:
-  0:
-    level: 0
-  8333:
-    level: 1
-  16666:
-    level: 2
-  24999:
-    level: 3
-  33332:
-    level: 4
-  41665:
-    level: 5
-  49998:
-    level: 6
-  58331:
-    level: 7
-  66664:
-    level: 8
-  74997:
-    level: 9
-  83330:
-    level: 10
-  91663:
-    level: 11
-  99996:
-    level: 12
-valid_task_schedule_path: null
-valid_wrappers: []
+  4:
+    level: 20
+  5:
+    level: 21
+  6:
+    level: 30
+  7:
+    level: 31
