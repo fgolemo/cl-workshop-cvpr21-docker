@@ -1,0 +1,4 @@
+# ADD ADDITIONAL PIP PACKAGES HERE IF YOU NEED ANY
+# OR CUSTOM VERSION NUMBERS OF PACKAGES
+
+tqdm # just an example, is already included as dep of Sequoia

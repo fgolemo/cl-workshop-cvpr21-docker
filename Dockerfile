@@ -4,7 +4,7 @@ RUN pip install --upgrade git+https://www.github.com/lebrice/Sequoia.git@cvpr_co
 WORKDIR /app
 COPY ./build/ .
 # just making sure we got everything
-#RUN pip install --upgrade -r requirements.txt # NO, this breaks wandb
+RUN pip install --upgrade -r submission/additional_pkgs.txt
 CMD xvfb-run --server-args="-screen 0 800x600x24+32" python ./main.py --mode sl
 
 
