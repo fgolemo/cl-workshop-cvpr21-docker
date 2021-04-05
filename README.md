@@ -5,6 +5,12 @@ Seed repo for the [CVPR'21 Continual Learning Challenge](https://eval.ai/web/cha
 
 Join the community on the [ContinualAI slack](https://join.slack.com/t/continualai/shared_invite/enQtNjQxNDYwMzkxNzk0LTBhYjg2MjM0YTM2OWRkNDYzOGE0ZTIzNDQ0ZGMzNDE3ZGUxNTZmNmM1YzJiYzgwMTkyZDQxYTlkMTI3NzZkNjU) (the #cl-workshop channel)
 
+
+## The RL Track is now LIVE!
+
+Remember to update, using the instructions below!
+
+
 ## Prerequisites
 
 - Install Docker (or Docker Desktop if you're on Mac/Win) and **make sure it's running**
@@ -29,8 +35,9 @@ conda activate clcomp21
 
 ## Creating Your Solution
 
-Submissions should be contained in the `submission/` folder. You can draw inspiration from the following examples:
- - [submission/dummy_method.py](submission/dummy_method.py):
+Submissions should be contained in the `submission/` folder. You can draw inspiration from the following examples.
+
+- [submission/dummy_method.py](submission/dummy_method.py):
         Model-free example that outputs random predictions/actions. Applicable to all tracks (RL and SL).
 - [SL Examples](submission/SL_examples)
     - [Simple Classifier](submission/SL_examples/classifier.py):
@@ -42,10 +49,18 @@ Submissions should be contained in the `submission/` folder. You can draw inspir
     - [Multi-Head / Task Inference Classifier](submission/SL_examples/multihead_classifier.py):
         Performs multi-head prediction, and a simple form of task inference. Gets better results that the two previous methods.
 
-    - (More to be added shortly)
+- [RL Examples](submission/RL_examples)
 
-- [RL Examples](submission/RL_examples) (coming soon!)
-- ["Both" Examples](submission/both_examples) (coming soon!)
+    - [A2C Example](submission/SL_examples/a2c_example.py):
+        Example where A2C is implemented from scratch as a Method for the RL track. The code for A2C was adapted from [this blogpost.](https://towardsdatascience.com/understanding-actor-critic-methods-931b97b6df3f)
+
+- **NOTE: See the Sequoia repo for more examples!**
+
+- ["Both" Examples](submission/both_examples)
+
+    - [Customizing the BaselineMethod](submission/both_examples/custom_baseline_example.py)
+        Example where we extend the BaselineMethod from Sequoia, which is applicable for both RL and SL.
+
 
 Make sure to change the contents of `submission/submission.py`, so that the various `get_method` actually return your method to use for each task (`get_method_sl` -> SL track, `get_method_rl` -> RL Track, `get_method` -> Both/Bonus track)
 
