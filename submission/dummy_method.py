@@ -37,7 +37,6 @@ class DummyMethod(Method, target_setting=Setting):
         # configure() will have been called by the setting before we get here.
         episodes = 0
         with tqdm.tqdm(desc="training") as train_pbar:
-            
             while not train_env.is_closed():
                 for i, batch in enumerate(train_env):
                     if isinstance(batch, Observations):
